@@ -8,6 +8,13 @@ import { MusicParser, type MusicParseResult } from './musicParser';
 
 const { addData, getData, deleteData } = musicDB;
 
+// 将 FM 歌曲移至垃圾桶（不喜欢）
+export const fmTrash = (id: number) => {
+  return request.post('/fm_trash', null, {
+    params: { id, timestamp: Date.now() }
+  });
+};
+
 // 获取音乐音质详情
 export const getMusicQualityDetail = (id: number) => {
   return request.get('/song/music/detail', { params: { id } });
@@ -26,7 +33,6 @@ export const getMusicUrl = async (id: number, isDownloaded: boolean = false) => 
           id,
           level: settingStore.setData.musicQuality || 'higher',
           encodeType: settingStore.setData.musicQuality == 'lossless' ? 'aac' : 'flac',
-          // level为lossless时，encodeType=flac时网易云会返回hires音质，encodeType=aac时网易云会返回lossless音质
           cookie: `${localStorage.getItem('token')} os=pc;`
         }
       });

@@ -1,56 +1,91 @@
 <template>
-  <div class="mv-list">
-    <div class="play-list-type">
-      <n-scrollbar x-scrollable>
-        <div class="categories-wrapper">
-          <span
-            v-for="(category, index) in categories"
-            :key="category.value"
-            class="play-list-type-item"
-            :class="[
-              setAnimationClass('animate__bounceIn'),
-              { active: selectedCategory === category.value }
-            ]"
-            :style="getAnimationDelay(index)"
-            @click="selectedCategory = category.value"
-          >
-            {{ category.label }}
-          </span>
+  <div class="h-full w-full">
+    <sticky-tab-page
+      ref="pageRef"
+      title="MV"
+      :description="t('comp.pages.mv.desc')"
+      :model-value="selectedCategory"
+      :categories="categories"
+      @change="handleCategoryChange"
+      @scroll="handleScroll"
+    >
+      <!-- MV Grid -->
+      <div v-if="initLoading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div v-for="i in 12" :key="i" class="space-y-3">
+          <div class="aspect-video skeleton-shimmer rounded-2xl" />
+          <div class="h-4 w-3/4 skeleton-shimmer rounded-lg" />
+          <div class="h-3 w-1/2 skeleton-shimmer rounded-lg" />
         </div>
-      </n-scrollbar>
-    </div>
-    <n-scrollbar :size="100" @scroll="handleScroll">
-      <div
-        v-loading="initLoading"
-        class="mv-list-content"
-        :class="setAnimationClass('animate__bounceInLeft')"
-      >
+      </div>
+
+      <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         <div
           v-for="(item, index) in mvList"
           :key="item.id"
-          class="mv-item"
-          :class="setAnimationClass('animate__bounceIn')"
-          :style="getAnimationDelay(index)"
+          class="mv-card group cursor-pointer animate-item"
+          :style="{ animationDelay: calculateAnimationDelay(index, 0.05) }"
+          @click="handleShowMv(item, index)"
         >
-          <div class="mv-item-img" @click="handleShowMv(item, index)">
-            <n-image
-              class="mv-item-img-img"
-              :src="getImgUrl(item.cover, '320y180')"
-              lazy
-              preview-disabled
+          <!-- Cover Image -->
+          <div
+            class="relative aspect-video overflow-hidden rounded-2xl shadow-md group-hover:shadow-xl transition-all duration-500"
+          >
+            <img
+              :src="getImgUrl(item.cover, '400y225')"
+              :alt="item.name"
+              class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              loading="lazy"
             />
-            <div class="top">
-              <div class="play-count">{{ formatNumber(item.playCount) }}</div>
-              <i class="iconfont icon-videofill"></i>
+
+            <!-- Play Overlay -->
+            <div
+              class="absolute inset-0 bg-transparent group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center"
+            >
+              <div
+                class="play-icon w-12 h-12 rounded-full bg-white/90 flex items-center justify-center opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 shadow-xl"
+              >
+                <i class="ri-play-fill text-2xl text-neutral-900 ml-1"></i>
+              </div>
+            </div>
+
+            <!-- Play Count Badge -->
+            <div
+              class="absolute top-3 right-3 px-2 py-1 rounded-lg bg-black/40 backdrop-blur-md text-white text-[10px] font-bold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            >
+              <i class="ri-play-fill"></i>
+              {{ formatNumber(item.playCount) }}
             </div>
           </div>
-          <div class="mv-item-title">{{ item.name }}</div>
-        </div>
 
-        <div v-if="loadingMore" class="loading-more">加载中...</div>
-        <div v-if="!hasMore && !initLoading" class="no-more">没有更多了</div>
+          <!-- Info -->
+          <div class="mt-3 space-y-1">
+            <h3
+              class="text-sm md:text-base font-bold text-neutral-900 dark:text-white line-clamp-1 group-hover:text-primary transition-colors"
+            >
+              {{ item.name }}
+            </h3>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">
+              {{ item.artistName }}
+            </p>
+          </div>
+        </div>
       </div>
-    </n-scrollbar>
+
+      <!-- Loading More / No More -->
+      <div class="mt-12 py-8 border-t border-neutral-100 dark:border-neutral-800">
+        <div v-if="loadingMore" class="flex flex-col items-center gap-4">
+          <n-spin size="small" />
+          <span class="text-xs text-neutral-400 font-medium tracking-widest uppercase">
+            {{ t('comp.pages.mv.loadingMore') }}
+          </span>
+        </div>
+        <div v-if="!hasMore && !initLoading" class="text-center">
+          <span class="text-xs text-neutral-400 font-medium tracking-widest uppercase opacity-50">
+            {{ t('comp.pages.mv.noMore') }}
+          </span>
+        </div>
+      </div>
+    </sticky-tab-page>
 
     <mv-player
       v-model:show="showMv"
@@ -64,18 +99,22 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import { getAllMv, getTopMv } from '@/api/mv';
+import StickyTabPage from '@/components/common/StickyTabPage.vue';
 import MvPlayer from '@/components/MvPlayer.vue';
 import { audioService } from '@/services/audioService';
 import { usePlayerStore } from '@/store/modules/player';
 import { IMvItem } from '@/types/mv';
-import { formatNumber, getImgUrl, setAnimationClass, setAnimationDelay } from '@/utils';
+import { calculateAnimationDelay, formatNumber, getImgUrl } from '@/utils';
 
 defineOptions({
   name: 'Mv'
 });
 
+const { t } = useI18n();
 const showMv = ref(false);
 const mvList = ref<Array<IMvItem>>([]);
 const playMvItem = ref<IMvItem>();
@@ -83,34 +122,47 @@ const initLoading = ref(false);
 const loadingMore = ref(false);
 const currentIndex = ref(0);
 const offset = ref(0);
-const limit = ref(42);
+const limit = ref(40);
 const hasMore = ref(true);
+const pageRef = ref();
 
-const categories = [
-  { label: '全部', value: '全部' },
-  { label: '内地', value: '内地' },
-  { label: '港台', value: '港台' },
-  { label: '欧美', value: '欧美' },
-  { label: '日本', value: '日本' },
-  { label: '韩国', value: '韩国' }
-];
+const categories = computed(() => [
+  { label: t('comp.pages.mv.area.all'), value: '全部' },
+  { label: t('comp.pages.mv.area.mainland'), value: '内地' },
+  { label: t('comp.pages.mv.area.hktw'), value: '港台' },
+  { label: t('comp.pages.mv.area.western'), value: '欧美' },
+  { label: t('comp.pages.mv.area.japan'), value: '日本' },
+  { label: t('comp.pages.mv.area.korea'), value: '韩国' }
+]);
 const selectedCategory = ref('全部');
+
+const router = useRouter();
+const route = useRoute();
 
 const playerStore = usePlayerStore();
 
-watch(selectedCategory, async () => {
+const handleCategoryChange = async (value: string) => {
+  selectedCategory.value = value;
   offset.value = 0;
   mvList.value = [];
   hasMore.value = true;
+  router.replace({ query: { ...route.query, area: value } });
   await loadMvList();
-});
-
-const getAnimationDelay = (index: number) => {
-  const currentPageIndex = index % limit.value;
-  return setAnimationDelay(currentPageIndex, 30);
 };
 
+watch(
+  () => route.query,
+  async (newParams) => {
+    if (route.path !== '/mv') return;
+    const newArea = (newParams.area as string) || '全部';
+    if (newArea !== selectedCategory.value) {
+      selectedCategory.value = newArea;
+    }
+  }
+);
+
 onMounted(async () => {
+  selectedCategory.value = (route.query.area as string) || '全部';
   await loadMvList();
 });
 
@@ -184,12 +236,9 @@ const loadMvList = async () => {
   }
 };
 
-const handleScroll = (e: Event) => {
-  const target = e.target as Element;
-  const { scrollTop, clientHeight, scrollHeight } = target;
-  const threshold = 100;
-
-  if (scrollHeight - (scrollTop + clientHeight) < threshold) {
+const handleScroll = (e: any) => {
+  const { scrollTop, clientHeight, scrollHeight } = e.target;
+  if (scrollHeight - (scrollTop + clientHeight) < 150) {
     loadMvList();
   }
 };
@@ -198,107 +247,18 @@ const isPrevDisabled = computed(() => currentIndex.value === 0);
 </script>
 
 <style scoped lang="scss">
-.mv-list {
-  @apply h-full flex-1 flex flex-col overflow-hidden;
-
-  &-title {
-    @apply text-xl font-bold pb-2;
-    @apply text-gray-900 dark:text-white;
-  }
-
-  // 添加歌单分类样式
-  .play-list-type {
-    .title {
-      @apply text-lg font-bold mb-2;
-      @apply text-gray-900 dark:text-white;
-    }
-
-    .categories-wrapper {
-      @apply flex items-center py-2;
-      white-space: nowrap;
-    }
-
-    &-item {
-      @apply py-2 px-3 mr-3 inline-block rounded-xl cursor-pointer transition-all duration-300;
-      @apply bg-light dark:bg-black text-gray-900 dark:text-white;
-      @apply border border-gray-200 dark:border-gray-700;
-
-      &:hover {
-        @apply bg-green-50 dark:bg-green-900;
-      }
-
-      &.active {
-        @apply bg-green-500 border-green-500 text-white;
-      }
-    }
-  }
-
-  &-content {
-    @apply grid gap-4 pb-28 mt-2 pr-4;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  }
-
-  .mv-item {
-    @apply p-2 rounded-lg;
-    @apply bg-light dark:bg-black;
-    @apply border border-gray-200 dark:border-gray-700;
-
-    &-img {
-      @apply rounded-lg overflow-hidden relative;
-      aspect-ratio: 16/9;
-      line-height: 0;
-
-      &:hover img {
-        @apply hover:scale-110 transition-all duration-300 ease-in-out object-top;
-      }
-
-      &-img {
-        @apply w-full h-full object-cover rounded-lg overflow-hidden;
-      }
-
-      .top {
-        @apply absolute w-full h-full top-0 left-0 flex justify-center items-center transition-all duration-300 ease-in-out cursor-pointer;
-        @apply bg-black bg-opacity-60;
-        opacity: 0;
-
-        i {
-          @apply text-4xl text-white;
-        }
-
-        .play-count {
-          @apply absolute top-2 right-2 text-sm;
-          @apply text-white text-opacity-90;
-        }
-
-        &:hover {
-          opacity: 1;
-        }
-      }
-    }
-
-    &-title {
-      @apply mt-2 text-sm line-clamp-1;
-      @apply text-gray-900 dark:text-white;
-    }
-  }
+.animate-item {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-.loading-more {
-  @apply text-center py-4 col-span-full;
-  @apply text-gray-500 dark:text-gray-400;
-}
-
-.no-more {
-  @apply text-center py-4 col-span-full;
-  @apply text-gray-500 dark:text-gray-400;
-}
-
-.mobile {
-  .mv-list-content {
-    @apply pl-4 pr-4;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
   }
-  .categories-wrapper {
-    @apply pl-4;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

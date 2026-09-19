@@ -1,4 +1,8 @@
 export default {
+  more: 'More',
+  homeListItem: {
+    loading: 'Loading...'
+  },
   installApp: {
     description: 'Install the application for a better experience',
     noPrompt: 'Do not prompt again',
@@ -33,11 +37,17 @@ export default {
     title: 'New version found',
     currentVersion: 'Current version',
     cancel: 'Do not update',
+    checking: 'Checking for updates...',
     prepareDownload: 'Preparing to download...',
     downloading: 'Downloading...',
+    readyToInstall: 'The update package is ready to install',
     nowUpdate: 'Update now',
     downloadFailed: 'Download failed, please try again or download manually',
     startFailed: 'Start download failed, please try again or download manually',
+    autoUpdateFailed: 'Automatic update failed',
+    openOfficialSite: 'Open official download page',
+    manualFallbackHint:
+      'If automatic update fails, you can download the latest version from the official release page.',
     noDownloadUrl:
       'No suitable installation package found for the current system, please download manually',
     installConfirmTitle: 'Install Update',
@@ -104,7 +114,68 @@ export default {
     songlist: 'Daily Recommendation List'
   },
   recommendSonglist: {
-    title: 'Weekly Hot Music'
+    title: 'Weekly Hot Music',
+    empty: 'No playlists available'
+  },
+  dailyRecommend: {
+    title: 'Daily Recommendation',
+    badge: 'Recommended',
+    empty: 'No recommended songs',
+    intelligenceHint: 'Turn on Intelligence Mode to discover more music you love'
+  },
+  recommendMV: {
+    title: 'Recommended MVs'
+  },
+  newAlbum: {
+    title: 'Albums',
+    empty: 'No new albums'
+  },
+  recommendNewMusic: {
+    title: 'New Songs'
+  },
+  privateContent: {
+    title: 'Exclusive Content'
+  },
+  djProgram: {
+    title: 'Recommended Radio'
+  },
+  homeHero: {
+    dailyRecommend: 'Daily Recommend',
+    songs: 'Songs',
+    playNow: 'Play Now',
+    intelligenceMode: 'Intelligence Mode',
+    intelligenceModeOn: 'On Air',
+    intelligenceModeDesc: 'Start smart recommendation',
+    intelligenceModeActiveDesc: 'Smart recommendations based on your taste',
+    startIntelligence: 'Start',
+    stopIntelligence: 'Stop',
+    playing: 'Playing',
+    toplistDesc: 'Trending now',
+    mvDesc: 'Music videos',
+    playlistDesc: 'Curated playlists',
+    personalFm: 'Personal FM',
+    discoverMusic: 'Discover Music',
+    personalFmDesc: 'Based on your taste',
+    recentPlays: 'Recent Plays',
+    viewAll: 'View All',
+    followedArtists: 'Followed Artists',
+    newSongs: ' new songs',
+    fromFollowedArtists: 'From artists you follow',
+    recommendNewMusic: 'New Music',
+    newSongExpress: 'New Releases',
+    discoverNewReleases: 'Discover the latest releases',
+    hotPlaylists: 'Hot Playlists',
+    hotArtists: 'Hot Artists',
+    hotArtistsTitle: 'Popular Artists',
+    hotArtistsDesc: 'Most popular artists right now',
+    fmTrash: 'Dislike',
+    fmNext: 'Next',
+    quickNav: {
+      myFavorite: 'My Favorites',
+      playHistory: 'History',
+      myProfile: 'My Profile',
+      toplist: 'Top Charts'
+    }
   },
   searchBar: {
     login: 'Login',
@@ -119,7 +190,13 @@ export default {
     zoom: 'Zoom',
     zoom100: 'Zoom 100%',
     resetZoom: 'Reset Zoom',
-    zoomDefault: 'Default Zoom'
+    zoomDefault: 'Default Zoom',
+    tabPlaylist: 'Playlist',
+    tabMv: 'MV',
+    tabCharts: 'Charts',
+    cancelSearch: 'Cancel',
+    intelligenceMode: 'Intelligence Mode',
+    exitIntelligence: 'Exit Intelligence Mode'
   },
   titleBar: {
     closeTitle: 'Choose how to close',
@@ -145,6 +222,10 @@ export default {
     addToPlaylistSuccess: 'Add to Playlist Success',
     operationFailed: 'Operation Failed',
     songsAlreadyInPlaylist: 'Songs already in playlist',
+    locateCurrent: 'Locate current song',
+    scrollToTop: 'Scroll to top',
+    compactLayout: 'Compact layout',
+    normalLayout: 'Normal layout',
     historyRecommend: 'Daily History',
     fetchDatesFailed: 'Failed to fetch dates',
     fetchSongsFailed: 'Failed to fetch songs',
@@ -174,6 +255,7 @@ export default {
       albumNamePlaceholder: 'Album Name',
       addSongButton: 'Add Song',
       addLinkButton: 'Add Link',
+      options: 'Options',
       importToStarPlaylist: 'Import to My Favorite Music',
       playlistNamePlaceholder: 'Enter playlist name',
       importButton: 'Start Import',
@@ -218,5 +300,41 @@ export default {
   list: 'Playlist',
   mv: 'MV',
   home: 'Home',
-  search: 'Search'
+  search: 'Search',
+  album: 'Album',
+  localMusic: 'Local Music',
+  pages: {
+    toplist: {
+      desc: 'The most authoritative music charts, discover the hottest music'
+    },
+    mv: {
+      desc: 'Explore amazing video content',
+      loadingMore: 'Loading more...',
+      noMore: '— All content loaded —',
+      area: {
+        all: 'All',
+        mainland: 'Mainland',
+        hktw: 'HK/TW',
+        western: 'Western',
+        japan: 'Japan',
+        korea: 'Korea'
+      }
+    },
+    list: {
+      desc: 'Discover more great playlists',
+      dailyRecommend: 'Daily Picks'
+    },
+    search: {
+      desc: 'Explore the hottest search trends'
+    },
+    album: {
+      area: {
+        all: 'All',
+        chinese: 'Chinese',
+        western: 'Western',
+        korea: 'Korea',
+        japan: 'Japan'
+      }
+    }
+  }
 };

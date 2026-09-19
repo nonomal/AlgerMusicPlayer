@@ -1,102 +1,139 @@
 <template>
-  <div class="donation-container">
-    <div class="qrcode-container">
-      <div class="description">
-        <p>{{ t('donation.description') }}</p>
-        <p>{{ t('donation.message') }}</p>
-        <n-button type="primary" @click="toDonateList">
+  <div class="donation-section">
+    <!-- 头部引导区 -->
+    <div class="my-8 text-center">
+      <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+        {{ t('donation.description') }}
+      </p>
+      <div class="mt-4 flex justify-center">
+        <n-button type="primary" secondary round @click="toDonateList">
           <template #icon>
-            <i class="ri-cup-line"></i>
+            <i class="ri-heart-3-line"></i>
           </template>
           {{ t('donation.toDonateList') }}
         </n-button>
       </div>
-      <div class="qrcode-grid">
-        <div class="qrcode-item">
-          <n-image :src="alipay" :alt="t('common.alipay')" class="qrcode-image" preview-disabled />
-          <span class="qrcode-label">{{ t('common.alipay') }}</span>
-        </div>
-
-        <div class="qrcode-item">
-          <n-image :src="wechat" :alt="t('common.wechat')" class="qrcode-image" preview-disabled />
-          <span class="qrcode-label">{{ t('common.wechat') }}</span>
-        </div>
-      </div>
     </div>
 
-    <div class="header-container">
-      <h3 class="section-title">{{ t('donation.title') }}</h3>
-      <n-button secondary round size="small" :loading="isLoading" @click="fetchDonors">
-        <template #icon>
-          <i class="ri-refresh-line"></i>
-        </template>
-        {{ t('donation.refresh') }}
-      </n-button>
-    </div>
-
-    <div class="donation-grid" :class="{ 'grid-expanded': isExpanded }">
+    <!-- 支付方式卡片 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 max-w-3xl mx-auto">
+      <!-- 支付宝 -->
       <div
-        v-for="donor in displayDonors"
-        :key="donor.id"
-        class="donation-card"
-        :class="{ 'no-message': !donor.message }"
+        class="pay-card group relative overflow-hidden rounded-2xl bg-[#00A0E9]/5 border border-[#00A0E9]/20 p-6 flex flex-col items-center transition-all hover:bg-[#00A0E9]/10 hover:shadow-lg hover:shadow-[#00A0E9]/10"
       >
-        <div class="card-content">
-          <div class="donor-avatar">
-            <n-avatar :src="donor.avatar" :fallback-src="defaultAvatar" round class="avatar-img" />
-          </div>
-          <div class="donor-info">
-            <div class="donor-meta">
-              <div class="donor-name">{{ donor.name }}</div>
-              <!-- <div class="price-tag">￥{{ donor.amount }}</div> -->
-            </div>
-            <div class="donation-date">{{ donor.date }}</div>
-          </div>
+        <div
+          class="absolute -right-4 -top-4 w-24 h-24 bg-[#00A0E9]/10 rounded-full blur-2xl group-hover:bg-[#00A0E9]/20 transition-colors"
+        ></div>
+        <img
+          :src="alipay"
+          alt="Alipay"
+          class="w-52 h-52 rounded-xl shadow-sm mb-4 group-hover:scale-105 transition-transform duration-300"
+        />
+        <div class="flex items-center gap-2 text-[#00A0E9] font-bold text-lg">
+          <i class="ri-alipay-fill text-2xl"></i>
+          {{ t('common.alipay') }}
         </div>
+      </div>
 
-        <!-- 有留言的情况 -->
-        <n-popover
-          v-if="donor.message"
-          trigger="hover"
-          placement="bottom"
-          :show-arrow="true"
-          :width="240"
-        >
-          <template #trigger>
-            <div class="donation-message">
-              <i class="ri-double-quotes-l quote-icon"></i>
-              <span class="message-text">{{ donor.message }}</span>
-              <i class="ri-double-quotes-r quote-icon"></i>
-            </div>
-          </template>
-          <div class="message-popover">
-            <i class="ri-double-quotes-l quote-icon"></i>
-            <span>{{ donor.message }}</span>
-            <i class="ri-double-quotes-r quote-icon"></i>
-          </div>
-        </n-popover>
-
-        <!-- 没有留言的情况显示占位符 -->
-        <div v-else class="donation-message-placeholder">
-          <i class="ri-emotion-line"></i>
-          <span>{{ t('donation.noMessage') }}</span>
+      <!-- 微信支付 -->
+      <div
+        class="pay-card group relative overflow-hidden rounded-2xl bg-[#09BB07]/5 border border-[#09BB07]/20 p-6 flex flex-col items-center transition-all hover:bg-[#09BB07]/10 hover:shadow-lg hover:shadow-[#09BB07]/10"
+      >
+        <div
+          class="absolute -right-4 -top-4 w-24 h-24 bg-[#09BB07]/10 rounded-full blur-2xl group-hover:bg-[#09BB07]/20 transition-colors"
+        ></div>
+        <img
+          :src="wechat"
+          alt="WeChat"
+          class="w-52 h-52 rounded-xl shadow-sm mb-4 group-hover:scale-105 transition-transform duration-300"
+        />
+        <div class="flex items-center gap-2 text-[#09BB07] font-bold text-lg">
+          <i class="ri-wechat-pay-fill text-2xl"></i>
+          {{ t('common.wechat') }}
         </div>
       </div>
     </div>
 
-    <div v-if="donors.length > 8" class="expand-button">
-      <n-button text @click="toggleExpand">
-        <template #icon>
-          <i :class="isExpanded ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'"></i>
-        </template>
-        {{ isExpanded ? t('common.collapse') : t('common.expand') }}
-      </n-button>
+    <!-- 捐赠者列表 -->
+    <div class="donors-list px-4">
+      <div class="flex items-center justify-between mb-4 px-1">
+        <h4 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <i class="ri-user-heart-line text-primary"></i>
+          {{ t('donation.title') }}
+        </h4>
+        <n-button quaternary size="small" :loading="isLoading" @click="fetchDonors">
+          <template #icon><i class="ri-refresh-line"></i></template>
+          {{ t('donation.refresh') }}
+        </n-button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div
+          v-for="(donor, index) in visibleDonors"
+          :key="donor.id"
+          class="donor-card group"
+          :class="index < FIRST_BATCH ? 'animate-fade-in-up' : ''"
+          :style="index < FIRST_BATCH ? { animationDelay: `${index * 10}ms` } : undefined"
+        >
+          <div
+            class="h-full bg-white dark:bg-neutral-800/50 border border-gray-100 dark:border-gray-800 rounded-xl p-3 flex gap-3 hover:border-primary/30 hover:shadow-md hover:bg-white dark:hover:bg-neutral-800 transition-all duration-300"
+          >
+            <!-- 头像 -->
+            <div class="relative flex-shrink-0">
+              <div
+                class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border border-gray-100 dark:border-gray-700"
+                :class="avatarColorClass(donor.name)"
+              >
+                {{ avatarInitial(donor.name) }}
+              </div>
+              <div
+                v-if="index < 3"
+                class="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white border border-white dark:border-gray-800"
+                :class="[
+                  index === 0 ? 'bg-yellow-400' : index === 1 ? 'bg-gray-400' : 'bg-orange-400'
+                ]"
+              >
+                <i class="ri-trophy-fill"></i>
+              </div>
+            </div>
+
+            <!-- 信息 -->
+            <div class="flex-1 min-w-0 flex flex-col justify-center">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-gray-900 dark:text-gray-100 truncate text-sm">
+                  {{ donor.name }}
+                </span>
+                <span class="text-xs font-mono text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded">
+                  ¥{{ donor.amount }}
+                </span>
+              </div>
+
+              <!-- 留言或日期 -->
+              <div class="mt-1">
+                <div
+                  v-if="donor.message"
+                  class="text-xs text-gray-500 dark:text-gray-400 truncate border-b border-dashed border-gray-300 dark:border-gray-600 inline-block max-w-full"
+                  :title="donor.message"
+                >
+                  "{{ donor.message }}"
+                </div>
+                <div v-else class="text-xs text-gray-400 dark:text-gray-600">
+                  {{ donor.date }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 自动加载哨兵 -->
+      <div v-if="hasMore" ref="sentinelRef" class="h-1"></div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onActivated, onMounted, ref } from 'vue';
+import { computed, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { Donor } from '@/api/donation';
@@ -106,20 +143,81 @@ import wechat from '@/assets/wechat.png';
 
 const { t } = useI18n();
 
-// 默认头像
-const defaultAvatar = 'https://avatars.githubusercontent.com/u/0?v=4';
+const PAGE_SIZE = 40;
+const FIRST_BATCH = 16;
 
-const donors = ref<Donor[]>([]);
+const AVATAR_COLORS = [
+  'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+  'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+  'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
+  'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+  'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+  'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400',
+  'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400',
+  'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
+];
+
+const allDonors = ref<Donor[]>([]);
+const visibleCount = ref(PAGE_SIZE);
 const isLoading = ref(false);
+const sentinelRef = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+
+const visibleDonors = computed(() => allDonors.value.slice(0, visibleCount.value));
+const hasMore = computed(() => visibleCount.value < allDonors.value.length);
+
+const isTextChar = (ch: string) => /[\p{L}\p{N}]/u.test(ch);
+
+const avatarInitial = (name: string) => {
+  if (!name) return '?';
+  for (const ch of name) {
+    if (isTextChar(ch)) {
+      return ch.toUpperCase();
+    }
+  }
+  return '?';
+};
+
+const avatarColorClass = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
+
+const loadMore = () => {
+  visibleCount.value = Math.min(visibleCount.value + PAGE_SIZE, allDonors.value.length);
+};
+
+const setupObserver = () => {
+  if (observer) observer.disconnect();
+  if (!sentinelRef.value) return;
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting && hasMore.value) {
+        loadMore();
+      }
+    },
+    { rootMargin: '200px' }
+  );
+  observer.observe(sentinelRef.value);
+};
+
+watch(sentinelRef, (el) => {
+  if (el) setupObserver();
+});
+
+onBeforeUnmount(() => {
+  observer?.disconnect();
+});
 
 const fetchDonors = async () => {
   isLoading.value = true;
   try {
     const data = await getDonationList();
-    donors.value = data.map((donor, index) => ({
-      ...donor,
-      avatar: `https://api.dicebear.com/7.x/micah/svg?seed=${index}`
-    }));
+    allDonors.value = data.sort((a, b) => Number(b.amount) - Number(a.amount));
+    visibleCount.value = PAGE_SIZE;
   } catch (error) {
     console.error('Failed to fetch donors:', error);
   } finally {
@@ -127,196 +225,27 @@ const fetchDonors = async () => {
   }
 };
 
-onMounted(() => {
-  fetchDonors();
-});
-
-onActivated(() => {
-  fetchDonors();
-});
-
-const isExpanded = ref(false);
-
-const displayDonors = computed(() => {
-  if (isExpanded.value) {
-    return donors.value;
-  }
-  return donors.value.slice(0, 8);
-});
-
-const toggleExpand = () => {
-  isExpanded.value = !isExpanded.value;
-};
-
 const toDonateList = () => {
   window.open('http://donate.alger.fun/download', '_blank');
 };
+
+onMounted(() => fetchDonors());
+onActivated(() => fetchDonors());
 </script>
 
-<style lang="scss" scoped>
-.donation-container {
-  @apply w-full overflow-hidden flex flex-col gap-4;
+<style scoped>
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-.header-container {
-  @apply flex justify-between items-center px-4 py-2;
-
-  .section-title {
-    @apply text-lg font-medium text-gray-700 dark:text-gray-200;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-}
-
-.donation-grid {
-  @apply grid gap-3 transition-all duration-300 overflow-hidden;
-  grid-template-columns: repeat(2, 1fr);
-  max-height: 320px;
-
-  @media (min-width: 768px) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  @media (min-width: 1024px) {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  &.grid-expanded {
-    @apply max-h-none;
-  }
-}
-
-.donation-card {
-  @apply rounded-lg p-2.5 transition-all duration-200 hover:shadow-md;
-  @apply bg-light-100 dark:bg-gray-800/5 backdrop-blur-sm;
-  @apply border border-gray-200 dark:border-gray-700/10;
-  @apply flex flex-col;
-  min-height: 100px;
-
-  .card-content {
-    @apply flex items-start gap-2 mb-2;
-  }
-}
-
-.donor-avatar {
-  @apply relative flex-shrink-0;
-
-  .avatar-img {
-    @apply border border-gray-200 dark:border-gray-700/10 shadow-sm;
-    @apply w-9 h-9;
-  }
-}
-
-.donor-info {
-  @apply flex-1 min-w-0 flex flex-col justify-center;
-
-  .donor-meta {
-    @apply flex justify-between items-center mb-0.5;
-
-    .donor-name {
-      @apply text-sm font-medium truncate flex-1 mr-1;
-    }
-
-    .price-tag {
-      @apply text-xs text-gray-400/80 dark:text-gray-500/80 whitespace-nowrap;
-    }
-  }
-
-  .donation-date {
-    @apply text-xs text-gray-400/60 dark:text-gray-500/60;
-  }
-}
-
-.donation-message {
-  @apply text-xs text-gray-500 dark:text-gray-400 italic mt-1 px-2 py-1.5;
-  @apply bg-gray-100/10 dark:bg-dark-300 rounded;
-  @apply flex items-start;
-  @apply cursor-pointer transition-all duration-200;
-
-  .quote-icon {
-    @apply text-gray-300 dark:text-gray-600 flex-shrink-0 opacity-60;
-
-    &:first-child {
-      @apply mr-1 self-start;
-    }
-
-    &:last-child {
-      @apply ml-1 self-end;
-    }
-  }
-
-  .message-text {
-    @apply flex-1 line-clamp-2;
-  }
-
-  &:hover {
-    @apply bg-gray-100/40 dark:bg-dark-200;
-  }
-}
-
-.donation-message-placeholder {
-  @apply text-xs text-gray-400 dark:text-gray-500 mt-1 px-2 py-1.5;
-  @apply bg-gray-100/5 dark:bg-dark-300 rounded;
-  @apply flex items-center justify-center gap-1 italic;
-  @apply border border-transparent;
-
-  i {
-    @apply text-gray-300 dark:text-gray-600;
-  }
-}
-
-.message-popover {
-  @apply text-sm text-gray-700 dark:text-gray-200 italic p-2;
-  @apply flex items-start;
-
-  .quote-icon {
-    @apply text-gray-400 dark:text-gray-500 flex-shrink-0;
-
-    &:first-child {
-      @apply mr-1.5 self-start;
-    }
-
-    &:last-child {
-      @apply ml-1.5 self-end;
-    }
-  }
-}
-
-.expand-button {
-  @apply flex justify-center items-center py-2;
-
-  :deep(.n-button) {
-    @apply transition-all duration-200 hover:-translate-y-0.5;
-  }
-}
-
-.qrcode-container {
-  @apply p-5 rounded-lg shadow-sm bg-light-100 dark:bg-gray-800/5 backdrop-blur-sm border border-gray-200 dark:border-gray-700/10;
-
-  .description {
-    @apply text-center text-sm text-gray-600 dark:text-gray-300 mb-4;
-
-    p {
-      @apply mb-2;
-    }
-  }
-
-  .qrcode-grid {
-    @apply flex justify-between items-center gap-4 flex-wrap;
-
-    .qrcode-item {
-      @apply flex flex-col items-center gap-2;
-
-      .qrcode-image {
-        @apply w-36 h-36 rounded-lg border border-gray-200 dark:border-gray-700/10 shadow-sm transition-transform duration-200 hover:scale-105;
-      }
-
-      .qrcode-label {
-        @apply text-sm text-gray-600 dark:text-gray-300;
-      }
-    }
-
-    .donate-button {
-      @apply flex flex-col items-center justify-center;
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

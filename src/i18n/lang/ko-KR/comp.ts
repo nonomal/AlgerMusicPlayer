@@ -1,4 +1,8 @@
 export default {
+  more: '더 보기',
+  homeListItem: {
+    loading: '로딩 중...'
+  },
   installApp: {
     description: '앱을 설치하여 더 나은 경험을 얻으세요',
     noPrompt: '다시 묻지 않기',
@@ -33,11 +37,17 @@ export default {
     title: '새 버전 발견',
     currentVersion: '현재 버전',
     cancel: '나중에 업데이트',
+    checking: '업데이트 확인 중...',
     prepareDownload: '다운로드 준비 중...',
     downloading: '다운로드 중...',
+    readyToInstall: '업데이트 패키지 다운로드가 완료되었습니다. 지금 설치할 수 있습니다',
     nowUpdate: '지금 업데이트',
     downloadFailed: '다운로드 실패, 다시 시도하거나 수동으로 다운로드해주세요',
     startFailed: '다운로드 시작 실패, 다시 시도하거나 수동으로 다운로드해주세요',
+    autoUpdateFailed: '자동 업데이트에 실패했습니다',
+    openOfficialSite: '공식 페이지에서 업데이트',
+    manualFallbackHint:
+      '자동 업데이트에 실패하면 공식 릴리스 페이지에서 최신 버전을 다운로드할 수 있습니다.',
     noDownloadUrl: '현재 시스템에 적합한 설치 패키지를 찾을 수 없습니다. 수동으로 다운로드해주세요',
     installConfirmTitle: '업데이트 설치',
     installConfirmContent: '앱을 닫고 업데이트를 설치하시겠습니까?',
@@ -103,7 +113,68 @@ export default {
     songlist: '일일 추천 목록'
   },
   recommendSonglist: {
-    title: '이번 주 인기 음악'
+    title: '이번 주 인기 음악',
+    empty: '추천 플레이리스트가 없습니다'
+  },
+  dailyRecommend: {
+    title: '일일 추천',
+    badge: '추천',
+    empty: '추천 곡이 없습니다',
+    intelligenceHint: '하트 모드를 켜서 더 좋아하는 음악을 발견하세요'
+  },
+  recommendMV: {
+    title: '추천 MV'
+  },
+  newAlbum: {
+    title: '앨범',
+    empty: '새 앨범이 없습니다'
+  },
+  recommendNewMusic: {
+    title: '신곡 속보'
+  },
+  privateContent: {
+    title: '독점 콘텐츠'
+  },
+  djProgram: {
+    title: '추천 라디오'
+  },
+  homeHero: {
+    dailyRecommend: '일일 추천',
+    songs: '곡',
+    playNow: '지금 재생',
+    intelligenceMode: '하트 모드',
+    intelligenceModeOn: '재생 중',
+    intelligenceModeDesc: '스마트 추천 시작',
+    intelligenceModeActiveDesc: '취향에 맞는 스마트 추천',
+    startIntelligence: '시작',
+    stopIntelligence: '중지',
+    playing: '재생 중',
+    toplistDesc: '인기 차트',
+    mvDesc: '뮤직비디오',
+    playlistDesc: '엄선된 플레이리스트',
+    personalFm: '개인 FM',
+    discoverMusic: '새로운 음악 발견',
+    personalFmDesc: '취향에 맞춘 추천',
+    recentPlays: '최근 재생',
+    viewAll: '전체 보기',
+    followedArtists: '팔로우 아티스트',
+    newSongs: '곡의 신곡',
+    fromFollowedArtists: '팔로우한 아티스트의 신곡',
+    recommendNewMusic: '추천 신곡',
+    newSongExpress: '신곡 속보',
+    discoverNewReleases: '최신 발매 곡을 발견하세요',
+    hotPlaylists: '인기 플레이리스트',
+    hotArtists: '인기 아티스트',
+    hotArtistsTitle: '인기 아티스트',
+    hotArtistsDesc: '지금 가장 인기 있는 아티스트',
+    fmTrash: '싫어요',
+    fmNext: '다음',
+    quickNav: {
+      myFavorite: '내 즐겨찾기',
+      playHistory: '재생 기록',
+      myProfile: '내 프로필',
+      toplist: '순위'
+    }
   },
   searchBar: {
     login: '로그인',
@@ -118,7 +189,13 @@ export default {
     zoom: '페이지 확대/축소',
     zoom100: '표준 확대/축소 100%',
     resetZoom: '클릭하여 확대/축소 재설정',
-    zoomDefault: '표준 확대/축소'
+    zoomDefault: '표준 확대/축소',
+    tabPlaylist: '플레이리스트',
+    tabMv: 'MV',
+    tabCharts: '차트',
+    cancelSearch: '취소',
+    intelligenceMode: '심쿵 모드',
+    exitIntelligence: '심쿵 모드 종료'
   },
   titleBar: {
     closeTitle: '닫기 방법을 선택해주세요',
@@ -144,6 +221,10 @@ export default {
     addToPlaylist: '재생 목록에 추가',
     addToPlaylistSuccess: '재생 목록에 추가 성공',
     songsAlreadyInPlaylist: '곡이 이미 재생 목록에 있습니다',
+    locateCurrent: '현재 재생 곡 찾기',
+    scrollToTop: '맨 위로',
+    compactLayout: '간결한 레이아웃',
+    normalLayout: '일반 레이아웃',
     historyRecommend: '일일 기록 권장',
     fetchDatesFailed: '날짜를 가져오지 못했습니다',
     fetchSongsFailed: '곡을 가져오지 못했습니다',
@@ -173,6 +254,7 @@ export default {
       albumNamePlaceholder: '앨범명',
       addSongButton: '곡 추가',
       addLinkButton: '링크 추가',
+      options: '옵션',
       importToStarPlaylist: '내가 좋아하는 음악으로 가져오기',
       playlistNamePlaceholder: '플레이리스트 이름을 입력하세요',
       importButton: '가져오기 시작',
@@ -217,5 +299,41 @@ export default {
   list: '플레이리스트',
   mv: 'MV',
   home: '홈',
-  search: '검색'
+  search: '검색',
+  album: '앨범',
+  localMusic: '로컬 음악',
+  pages: {
+    toplist: {
+      desc: '가장 권위 있는 음악 차트, 지금 가장 핫한 음악을 발견하세요'
+    },
+    mv: {
+      desc: '멋진 영상 콘텐츠 탐색',
+      loadingMore: '더 불러오는 중...',
+      noMore: '— 모든 콘텐츠 로드 완료 —',
+      area: {
+        all: '전체',
+        mainland: '중국 대륙',
+        hktw: '홍콩/대만',
+        western: '서양',
+        japan: '일본',
+        korea: '한국'
+      }
+    },
+    list: {
+      desc: '더 많은 멋진 플레이리스트를 발견하세요',
+      dailyRecommend: '오늘의 추천'
+    },
+    search: {
+      desc: '지금 가장 핫한 검색 트렌드를 탐색하세요'
+    },
+    album: {
+      area: {
+        all: '전체',
+        chinese: '중화권',
+        western: '서양',
+        korea: '한국',
+        japan: '일본'
+      }
+    }
+  }
 };

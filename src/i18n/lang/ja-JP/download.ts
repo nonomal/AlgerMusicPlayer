@@ -10,7 +10,8 @@ export default {
   },
   empty: {
     noTasks: 'ダウンロードタスクがありません',
-    noDownloaded: 'ダウンロード済みの楽曲がありません'
+    noDownloaded: 'ダウンロード済みの楽曲がありません',
+    noDownloadedHint: '好きな曲をダウンロードしましょう'
   },
   progress: {
     total: '全体の進行状況: {progress}%'
@@ -19,7 +20,21 @@ export default {
     downloading: 'ダウンロード中',
     completed: '完了',
     failed: '失敗',
-    unknown: '不明'
+    unknown: '不明',
+    queued: 'キュー中',
+    paused: '一時停止',
+    cancelled: 'キャンセル済み'
+  },
+  action: {
+    pause: '一時停止',
+    resume: '再開',
+    cancel: 'キャンセル',
+    cancelAll: 'すべてキャンセル',
+    retrying: 'URL再取得中...'
+  },
+  batch: {
+    complete: 'ダウンロード完了：{success}/{total}曲成功',
+    allComplete: '全てのダウンロードが完了'
   },
   artist: {
     unknown: '不明なアーティスト'
@@ -40,7 +55,16 @@ export default {
       'すべてのダウンロード記録をクリアしますか？この操作はダウンロード済みの音楽ファイルを削除しませんが、すべての記録をクリアします。',
     confirm: 'クリア確認',
     cancel: 'キャンセル',
-    success: 'ダウンロード記録をクリアしました'
+    success: 'ダウンロード記録をクリアしました',
+    failed: 'ダウンロード記録のクリアに失敗しました'
+  },
+  save: {
+    title: '設定を保存',
+    message: '現在のダウンロード設定が保存されていません。変更を保存しますか？',
+    confirm: '保存',
+    cancel: 'キャンセル',
+    discard: '破棄',
+    saveSuccess: 'ダウンロード設定を保存しました'
   },
   message: {
     downloadComplete: '{filename}のダウンロードが完了しました',
@@ -50,6 +74,7 @@ export default {
   playStarted: '再生開始: {name}',
   playFailed: '再生失敗: {name}',
   path: {
+    copy: 'パスをコピー',
     copied: 'パスをクリップボードにコピーしました',
     copyFailed: 'パスのコピーに失敗しました'
   },
@@ -61,6 +86,8 @@ export default {
     noPathSelected: 'まずダウンロードパスを選択してください',
     select: 'フォルダを選択',
     open: 'フォルダを開く',
+    saveLyric: '歌詞ファイルを個別に保存',
+    saveLyricDesc: '楽曲ダウンロード時に .lrc 歌詞ファイルも一緒に保存します',
     fileFormat: 'ファイル名形式',
     fileFormatDesc: '音楽ダウンロード時のファイル命名形式を設定',
     customFormat: 'カスタム形式',
@@ -73,6 +100,8 @@ export default {
     dragToArrange: 'ドラッグで並び替えまたは矢印ボタンで順序を調整：',
     formatVariables: '使用可能な変数',
     preview: 'プレビュー効果：',
+    concurrency: '最大同時ダウンロード数',
+    concurrencyDesc: '同時にダウンロードする最大曲数（1-5）',
     saveSuccess: 'ダウンロード設定を保存しました',
     presets: {
       songArtist: '楽曲名 - アーティスト名',
@@ -84,5 +113,10 @@ export default {
       artistName: 'アーティスト名',
       albumName: 'アルバム名'
     }
+  },
+  error: {
+    incomplete: 'ファイルのダウンロードが不完全です',
+    urlExpired: 'URLの有効期限が切れました。再取得中',
+    resumeFailed: '再開に失敗しました'
   }
 };

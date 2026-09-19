@@ -16,12 +16,25 @@ export default {
   progress: {
     total: 'Total Progress: {progress}%'
   },
-  items: 'items',
   status: {
     downloading: 'Downloading',
     completed: 'Completed',
     failed: 'Failed',
-    unknown: 'Unknown'
+    unknown: 'Unknown',
+    queued: 'Queued',
+    paused: 'Paused',
+    cancelled: 'Cancelled'
+  },
+  action: {
+    pause: 'Pause',
+    resume: 'Resume',
+    cancel: 'Cancel',
+    cancelAll: 'Cancel All',
+    retrying: 'Re-resolving URL...'
+  },
+  batch: {
+    complete: 'Download complete: {success}/{total} songs succeeded',
+    allComplete: 'All downloads complete'
   },
   artist: {
     unknown: 'Unknown Artist'
@@ -42,17 +55,26 @@ export default {
       'Are you sure you want to clear all download records? This will not delete the actual music files, but will clear all records.',
     confirm: 'Clear',
     cancel: 'Cancel',
-    success: 'Download records cleared'
+    success: 'Download records cleared',
+    failed: 'Failed to clear download records'
+  },
+  save: {
+    title: 'Save Settings',
+    message: 'Current download settings are not saved. Do you want to save the changes?',
+    confirm: 'Save',
+    cancel: 'Cancel',
+    discard: 'Discard',
+    saveSuccess: 'Download settings saved'
   },
   message: {
     downloadComplete: '{filename} download completed',
-    downloadFailed: '{filename} download failed: {error}',
-    alreadyDownloading: '{filename} is already downloading'
+    downloadFailed: '{filename} download failed: {error}'
   },
   loading: 'Loading...',
   playStarted: 'Play started: {name}',
   playFailed: 'Play failed: {name}',
   path: {
+    copy: 'Copy Path',
     copied: 'Path copied to clipboard',
     copyFailed: 'Failed to copy path'
   },
@@ -64,6 +86,8 @@ export default {
     noPathSelected: 'Please select download path first',
     select: 'Select Folder',
     open: 'Open Folder',
+    saveLyric: 'Save Lyrics File',
+    saveLyricDesc: 'Save a separate .lrc lyrics file alongside the downloaded song',
     fileFormat: 'Filename Format',
     fileFormatDesc: 'Set how downloaded music files will be named',
     customFormat: 'Custom Format',
@@ -76,6 +100,8 @@ export default {
     dragToArrange: 'Sort or use arrow buttons to arrange:',
     formatVariables: 'Available variables',
     preview: 'Preview:',
+    concurrency: 'Max Concurrent',
+    concurrencyDesc: 'Maximum number of simultaneous downloads (1-5)',
     saveSuccess: 'Download settings saved',
     presets: {
       songArtist: 'Song - Artist',
@@ -87,5 +113,10 @@ export default {
       artistName: 'Artist name',
       albumName: 'Album name'
     }
+  },
+  error: {
+    incomplete: 'File download incomplete',
+    urlExpired: 'URL expired, re-resolving',
+    resumeFailed: 'Resume failed'
   }
 };

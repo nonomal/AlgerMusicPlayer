@@ -4,7 +4,7 @@
     @contextmenu.prevent="handleContextMenu"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
-    @dblclick.stop="playMusicEvent(item)"
+    @dblclick.stop="handlePlay(item)"
   >
     <slot name="index"></slot>
     <slot name="select" v-if="selectable"></slot>
@@ -22,9 +22,10 @@
       :is-dislike="isDislike"
       :can-remove="canRemove"
       @update:show="showDropdown = $event"
-      @play="playMusicEvent(item)"
+      @play="handlePlay(item)"
       @play-next="handlePlayNext"
       @download="downloadMusic(item)"
+      @download-lyric="downloadLyric(item)"
       @toggle-favorite="toggleFavorite"
       @toggle-dislike="toggleDislike"
       @remove="$emit('remove-song', $event)"
@@ -71,7 +72,8 @@ const {
   handleArtistClick,
   handleMouseEnter,
   handleMouseLeave,
-  downloadMusic
+  downloadMusic,
+  downloadLyric
 } = useSongItem(props);
 
 // 处理图片加载
@@ -79,6 +81,12 @@ const imageLoad = async (event: Event) => {
   const target = event.target as HTMLImageElement;
   if (!target) return;
   await handleImageLoad(target);
+};
+
+// 双击和右键菜单"播放"统一入口：先通知父组件设置播放列表上下文，再触发播放
+const handlePlay = (song: SongResult) => {
+  emits('play', song);
+  playMusicEvent(song);
 };
 
 // 切换选择状态
@@ -110,7 +118,7 @@ defineExpose({
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  @apply rounded-3xl p-3 flex items-center transition bg-transparent dark:text-white text-gray-900;
+  @apply rounded-xl p-3 flex items-center transition bg-transparent dark:text-white text-gray-900;
 }
 
 .text-ellipsis {

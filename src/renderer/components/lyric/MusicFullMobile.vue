@@ -408,11 +408,14 @@ import {
   useLyricProgress
 } from '@/hooks/MusicHook';
 import { useArtist } from '@/hooks/useArtist';
+import { useLyricBackground } from '@/hooks/useLyricBackground';
 import { usePlayMode } from '@/hooks/usePlayMode';
+import { audioService } from '@/services/audioService';
 import { usePlayerStore } from '@/store/modules/player';
 import { DEFAULT_LYRIC_CONFIG, LyricConfig } from '@/types/lyric';
 import { getImgUrl, secondToMinute } from '@/utils';
-import { animateGradient, getHoverBackgroundColor, getTextColors } from '@/utils/linearColor';
+import { getTextColors } from '@/utils/linearColor';
+import { LYRIC_CONFIG_CHANGE_EVENT, readLyricConfig } from '@/utils/lyricConfig';
 import { showBottomToast } from '@/utils/shortcutToast';
 
 const { t } = useI18n();
@@ -757,7 +760,7 @@ const handleProgressBarClick = (e: MouseEvent) => {
 
   console.log(`进度条点击: ${percentage.toFixed(2)}, 新时间: ${newTime.toFixed(2)}`);
 
-  sound.value.seek(newTime);
+  audioService.seek(newTime);
   nowTime.value = newTime;
 };
 
@@ -817,7 +820,7 @@ const handleMouseUp = (e: MouseEvent) => {
   e.preventDefault();
 
   // 释放时跳转到指定位置
-  sound.value.seek(nowTime.value);
+  audioService.seek(nowTime.value);
   console.log(`鼠标释放，跳转到: ${nowTime.value.toFixed(2)}秒`);
 
   isMouseDragging.value = false;
@@ -871,15 +874,20 @@ const handleThumbTouchEnd = (e: TouchEvent) => {
 
   // 拖动结束时执行seek操作
   console.log(`拖动结束，跳转到: ${nowTime.value.toFixed(2)}秒`);
-  sound.value.seek(nowTime.value);
+  audioService.seek(nowTime.value);
   isThumbDragging.value = false;
 };
 
-// 背景相关
-const currentBackground = ref('');
-const animationFrame = ref<number | null>(null);
-const isDark = ref(false);
+// 背景相关（由 composable 管理）
+const { isDark, applyBackground } = useLyricBackground({
+  writeBgColor: () => playerStore.playMusic.primaryColor || undefined
+});
 const config = ref<LyricConfig>({ ...DEFAULT_LYRIC_CONFIG });
+
+// 监听设置页等外部来源的配置变更，保持移动端播放页与设置页状态同步（#758）
+const handleLyricConfigChange = () => {
+  config.value = readLyricConfig();
+};
 
 // 可见歌词计算
 const visibleLyrics = computed(() => {
@@ -936,49 +944,6 @@ const isVisible = computed({
   set: (value) => emit('update:modelValue', value)
 });
 
-// 设置文字颜色
-const setTextColors = (background: string) => {
-  if (!background) {
-    textColors.value = getTextColors();
-    document.documentElement.style.setProperty('--hover-bg-color', getHoverBackgroundColor(false));
-    document.documentElement.style.setProperty('--text-color-primary', textColors.value.primary);
-    document.documentElement.style.setProperty('--text-color-active', textColors.value.active);
-    document.documentElement.style.setProperty('--bg-color', 'rgba(25, 25, 25, 1)');
-    return;
-  }
-
-  // 更新文字颜色
-  textColors.value = getTextColors(background);
-  isDark.value = textColors.value.active === '#000000';
-
-  document.documentElement.style.setProperty(
-    '--hover-bg-color',
-    getHoverBackgroundColor(isDark.value)
-  );
-  document.documentElement.style.setProperty('--text-color-primary', textColors.value.primary);
-  document.documentElement.style.setProperty('--text-color-active', textColors.value.active);
-
-  // 解析背景颜色用于封面融合
-  let bgColor = playerStore.playMusic.primaryColor || 'rgba(25, 25, 25, 1)';
-
-  document.documentElement.style.setProperty('--bg-color', bgColor);
-
-  // 处理背景颜色动画
-  if (currentBackground.value) {
-    if (animationFrame.value) {
-      cancelAnimationFrame(animationFrame.value);
-    }
-    const result = animateGradient(currentBackground.value, background, (gradient) => {
-      currentBackground.value = gradient;
-    });
-    if (typeof result === 'number') {
-      animationFrame.value = result;
-    }
-  } else {
-    currentBackground.value = background;
-  }
-};
-
 const targetBackground = computed(() => {
   if (config.value.theme !== 'default') {
     return themeMusic[config.value.theme] || props.background;
@@ -991,19 +956,24 @@ watch(
   targetBackground,
   (newBg) => {
     if (newBg) {
-      setTextColors(newBg);
+      applyBackground(newBg);
     }
   },
   { immediate: true }
 );
 
-// 组件卸载时清理动画
+// 组件卸载清理
 onBeforeUnmount(() => {
-  if (animationFrame.value) {
-    cancelAnimationFrame(animationFrame.value);
-  }
+  window.removeEventListener(LYRIC_CONFIG_CHANGE_EVENT, handleLyricConfigChange);
+
   if (autoScrollTimer.value) {
     clearTimeout(autoScrollTimer.value);
+  }
+
+  // 清理睡眠定时器倒计时刷新 interval，避免组件卸载后残留、闭包持有 store 无法回收
+  if (sleepTimerInterval) {
+    clearInterval(sleepTimerInterval);
+    sleepTimerInterval = null;
   }
 
   // 清理鼠标事件监听
@@ -1083,6 +1053,7 @@ onMounted(() => {
   if (savedConfig) {
     config.value = { ...config.value, ...JSON.parse(savedConfig) };
   }
+  window.addEventListener(LYRIC_CONFIG_CHANGE_EVENT, handleLyricConfigChange);
 
   // 初始化自动滚动状态
   isAutoScrollEnabled.value = true;
@@ -1112,7 +1083,7 @@ watch(isVisible, (newVal) => {
   if (newVal) {
     // 播放器显示时，重新设置背景颜色
     if (targetBackground.value) {
-      setTextColors(targetBackground.value);
+      applyBackground(targetBackground.value);
     }
   } else {
     showFullLyrics.value = false;
@@ -1128,19 +1099,27 @@ const { getLrcStyle: originalLrcStyle } = useLyricProgress();
 
 // 修改 getLrcStyle 函数
 const getLrcStyle = (index: number) => {
-  const colors = textColors.value || getTextColors;
+  const colors = textColors.value || getTextColors();
   const originalStyle = originalLrcStyle(index);
 
   if (index === nowIndex.value) {
     // 当前播放的歌词，使用渐变效果
+    // 只有原始样式包含 backgroundImage 时才设置 color: transparent
+    // 否则前奏阶段文字会因 transparent 而不可见
+    if (originalStyle.backgroundImage) {
+      return {
+        ...originalStyle,
+        backgroundImage: originalStyle.backgroundImage
+          .replace(/#ffffff/g, colors.active)
+          .replace(/#ffffff8a/g, `${colors.primary}`),
+        backgroundClip: 'text',
+        WebkitBackgroundClip: 'text',
+        color: 'transparent'
+      };
+    }
+    // 当前行但播放时间未到（前奏/间奏），用高亮色显示
     return {
-      ...originalStyle,
-      backgroundImage: originalStyle.backgroundImage
-        ?.replace(/#ffffff/g, colors.active)
-        .replace(/#ffffff8a/g, `${colors.primary}`),
-      backgroundClip: 'text',
-      WebkitBackgroundClip: 'text',
-      color: 'transparent'
+      color: colors.active
     };
   }
 

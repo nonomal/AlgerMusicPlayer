@@ -3,6 +3,7 @@ export default {
     play: 'Play',
     playNext: 'Play Next',
     download: 'Download',
+    downloadLyric: 'Download Lyrics',
     addToPlaylist: 'Add to Playlist',
     favorite: 'Like',
     unfavorite: 'Unlike',
@@ -12,10 +13,15 @@ export default {
   },
   message: {
     downloading: 'Downloading, please wait...',
+    addToPlaylistNeedLogin:
+      'Please log in with Cookie or QR code to add songs to a playlist (not available for UID login)',
     downloadFailed: 'Download failed',
     downloadQueued: 'Added to download queue',
     addedToNextPlay: 'Added to play next',
-    getUrlFailed: 'Failed to get music download URL, please check if logged in'
+    getUrlFailed: 'Failed to get music download URL, please check if logged in',
+    noLyric: 'No lyrics available for this song',
+    lyricDownloaded: 'Lyrics downloaded successfully',
+    lyricDownloadFailed: 'Failed to download lyrics'
   },
   dialog: {
     dislike: {

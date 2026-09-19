@@ -53,18 +53,8 @@ const otherRouter = [
       showInMenu: false,
       back: true
     },
-    component: () => import('@/views/artist/detail.vue')
-  },
-  {
-    path: '/bilibili/:bvid',
-    name: 'bilibiliPlayer',
-    meta: {
-      title: 'B站听书',
-      keepAlive: true,
-      showInMenu: false,
-      back: true
-    },
-    component: () => import('@/views/bilibili/BilibiliPlayer.vue')
+    component: () => import('@/views/artist/detail.vue'),
+    props: (route) => ({ key: route.params.id })
   },
   {
     path: '/music-list/:id?',
@@ -130,6 +120,40 @@ const otherRouter = [
       back: true
     },
     component: () => import('@/views/mobile-search-result/index.vue')
+  },
+  {
+    path: '/podcast/radio/:id',
+    name: 'podcastRadio',
+    meta: {
+      title: 'podcast.radioDetail',
+      keepAlive: false,
+      showInMenu: false,
+      back: true,
+      isMobile: true
+    },
+    component: () => import('@/views/podcast/radio.vue')
+  },
+  {
+    path: '/favorite',
+    name: 'favorite',
+    meta: {
+      title: 'comp.homeHero.quickNav.myFavorite',
+      icon: 'ri-heart-fill',
+      keepAlive: true,
+      back: true
+    },
+    component: () => import('@/views/favorite/index.vue')
+  },
+  {
+    path: '/search-result',
+    name: 'searchResult',
+    meta: {
+      title: '搜索结果',
+      keepAlive: true,
+      showInMenu: false,
+      back: true
+    },
+    component: () => import('@/views/search/SearchResult.vue')
   }
 ];
 export default otherRouter;

@@ -17,6 +17,9 @@ export default {
   parseFailedPlayNext: 'Song parsing failed, playing next',
   consecutiveFailsError:
     'Playback error, possibly due to network issues or invalid source. Please switch playlist or try again later',
+  playListEnded: 'Reached the end of the playlist',
+  autoResumed: 'Playback resumed automatically',
+  resumeFailed: 'Failed to resume playback, please try manually',
   playMode: {
     sequence: 'Sequence',
     loop: 'Loop',
@@ -56,6 +59,7 @@ export default {
     eq: 'Equalizer',
     playList: 'Play List',
     reparse: 'Reparse',
+    download: 'Download',
     miniPlayBar: 'Mini Play Bar',
     playMode: {
       sequence: 'Sequence',
@@ -131,10 +135,7 @@ export default {
     timerEnded: 'Sleep timer ended',
     playbackStopped: 'Music playback stopped',
     minutesRemaining: '{minutes} min remaining',
-    songsRemaining: '{count} songs remaining',
-    activeTime: 'Timer Active',
-    activeSongs: 'Counting Songs',
-    activeEnd: 'End After List'
+    songsRemaining: '{count} songs remaining'
   },
   playList: {
     clearAll: 'Clear Playlist',

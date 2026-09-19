@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container" :class="{ mobile: isMobile, noElectron: !isElectron }">
+  <div class="app-container h-full w-full" :class="{ mobile: isMobile, noElectron: !isElectron }">
     <n-config-provider :theme="theme === 'dark' ? darkTheme : lightTheme">
       <n-dialog-provider>
         <n-message-provider>
@@ -22,6 +22,7 @@ import { useRouter } from 'vue-router';
 import DisclaimerModal from '@/components/common/DisclaimerModal.vue';
 import TrafficWarningDrawer from '@/components/TrafficWarningDrawer.vue';
 import { usePlayerStore } from '@/store/modules/player';
+import { usePlayerCoreStore } from '@/store/modules/playerCore';
 import { useSettingsStore } from '@/store/modules/settings';
 import { useUserStore } from '@/store/modules/user';
 import { isElectron, isLyricWindow } from '@/utils';
@@ -36,6 +37,7 @@ import { useAppShortcuts } from './utils/appShortcuts';
 const { locale } = useI18n();
 const settingsStore = useSettingsStore();
 const playerStore = usePlayerStore();
+const playerCoreStore = usePlayerCoreStore();
 const userStore = useUserStore();
 const router = useRouter();
 
@@ -98,11 +100,18 @@ if (isElectron) {
   window.api.onLanguageChanged(handleSetLanguage);
   window.electron.ipcRenderer.on('mini-mode', (_, value) => {
     settingsStore.setMiniMode(value);
+    // 切换迷你/主界面时复位全屏播放页状态：
+    // musicFull 残留为 true 会让返回主界面后第一次点击歌曲信息被"取反"关闭，
+    // 表现为全屏页打不开（#242）
+    playerStore.setMusicFull(false);
     if (value) {
       // 存储当前路由
       localStorage.setItem('currentRoute', router.currentRoute.value.path);
       router.push('/mini');
     } else {
+      // 清理迷你模式下设置的 body 样式
+      document.body.style.height = '';
+      document.body.style.overflow = '';
       // 恢复当前路由
       const currentRoute = localStorage.getItem('currentRoute');
       if (currentRoute) {
@@ -123,10 +132,31 @@ onMounted(async () => {
   if (isLyricWindow.value) {
     return;
   }
+
+  // 检查网络状态，离线时自动跳转到本地音乐页面
+  if (!navigator.onLine) {
+    router.push('/local-music');
+  }
+
+  // 监听网络状态变化，断网时跳转到本地音乐页面
+  const handleOffline = () => {
+    router.push('/local-music');
+  };
+  window.addEventListener('offline', handleOffline);
+  onUnmounted(() => {
+    window.removeEventListener('offline', handleOffline);
+  });
+
   // 初始化 MusicHook，注入 playerStore
   initMusicHook(playerStore);
+  // 设置 URL 过期自动续播处理器
+  const { setupUrlExpiredHandler } = await import('@/services/playbackController');
+  setupUrlExpiredHandler();
   // 初始化播放状态
   await playerStore.initializePlayState();
+
+  // 初始化音频设备变化监听器
+  playerCoreStore.initAudioDeviceListener();
 
   // 初始化落雪音源（如果有激活的音源）
   const activeLxApiId = settingsStore.setData?.activeLxMusicApiId;
@@ -154,12 +184,22 @@ onMounted(async () => {
   }
 
   audioService.releaseOperationLock();
+
+  // 启动后自动刷新本地音乐库：先用缓存立即出内容，再在后台增量扫描，
+  // 使新增/已删除的本地歌曲不必手动点刷新就能同步
+  if (isElectron) {
+    const { useLocalMusicStore } = await import('@/store/modules/localMusic');
+    const localMusicStore = useLocalMusicStore();
+    await localMusicStore.loadFromCache();
+    localMusicStore.scanFolders().catch((error) => {
+      console.error('[App] 启动时自动扫描本地音乐失败:', error);
+    });
+  }
 });
 </script>
 
 <style lang="scss" scoped>
 .app-container {
-  @apply h-full w-full;
   user-select: none;
 }
 

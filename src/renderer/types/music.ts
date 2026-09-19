@@ -6,19 +6,12 @@ export type Platform =
   | 'kuwo'
   | 'pyncmd'
   | 'joox'
-  | 'bilibili'
   | 'gdmusic'
-  | 'lxMusic';
+  | 'lxMusic'
+  | 'custom';
 
 // 默认平台列表
-export const DEFAULT_PLATFORMS: Platform[] = [
-  'lxMusic',
-  'migu',
-  'kugou',
-  'kuwo',
-  'pyncmd',
-  'bilibili'
-];
+export const DEFAULT_PLATFORMS: Platform[] = ['lxMusic', 'migu', 'kugou', 'kuwo', 'pyncmd'];
 
 export interface IRecommendMusic {
   code: number;
@@ -64,17 +57,17 @@ export interface SongResult {
   artists?: Artist[];
   al: Album;
   album?: Album;
+  /** 翻译名（外语歌曲的中文译名等，来自网易 API） */
+  tns?: string[];
+  /** 别名 */
+  alia?: string[];
   count: number;
   playMusicUrl?: string;
   playLoading?: boolean;
   lyric?: ILyric;
   backgroundColor?: string;
   primaryColor?: string;
-  bilibiliData?: {
-    bvid: string;
-    cid: number;
-  };
-  source?: 'netease' | 'bilibili';
+  source?: 'netease';
   // 过期时间
   expiredAt?: number;
   // 获取时间
@@ -83,6 +76,7 @@ export interface SongResult {
   duration?: number;
   dt?: number;
   isFirstPlay?: boolean;
+  isPodcast?: boolean;
 }
 
 export interface Song {

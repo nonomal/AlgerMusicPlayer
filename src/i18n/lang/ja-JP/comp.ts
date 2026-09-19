@@ -1,4 +1,8 @@
 export default {
+  more: 'もっと見る',
+  homeListItem: {
+    loading: '読み込み中...'
+  },
   installApp: {
     description: 'アプリをインストールして、より良い体験を',
     noPrompt: '今後表示しない',
@@ -33,11 +37,17 @@ export default {
     title: '新しいバージョンが見つかりました',
     currentVersion: '現在のバージョン',
     cancel: '後で更新',
+    checking: '更新を確認中...',
     prepareDownload: 'ダウンロード準備中...',
     downloading: 'ダウンロード中...',
+    readyToInstall: '更新パッケージのダウンロードが完了しました。今すぐインストールできます',
     nowUpdate: '今すぐ更新',
     downloadFailed: 'ダウンロードに失敗しました。再試行するか手動でダウンロードしてください',
     startFailed: 'ダウンロードの開始に失敗しました。再試行するか手動でダウンロードしてください',
+    autoUpdateFailed: '自動更新に失敗しました',
+    openOfficialSite: '公式サイトから更新',
+    manualFallbackHint:
+      '自動更新に失敗した場合は、公式リリースページから最新版をダウンロードできます。',
     noDownloadUrl:
       '現在のシステムに適したインストールパッケージが見つかりません。手動でダウンロードしてください',
     installConfirmTitle: '更新をインストール',
@@ -104,7 +114,68 @@ export default {
     songlist: '毎日のおすすめリスト'
   },
   recommendSonglist: {
-    title: '今週の人気音楽'
+    title: '今週の人気音楽',
+    empty: 'おすすめのプレイリストがありません'
+  },
+  dailyRecommend: {
+    title: '毎日のおすすめ',
+    badge: 'おすすめ',
+    empty: 'おすすめの曲がありません',
+    intelligenceHint: 'インテリジェンスモードをオンにして、もっと好きな音楽を見つけましょう'
+  },
+  recommendMV: {
+    title: 'おすすめMV'
+  },
+  newAlbum: {
+    title: 'アルバム',
+    empty: '新しいアルバムがありません'
+  },
+  recommendNewMusic: {
+    title: '新曲速報'
+  },
+  privateContent: {
+    title: '独占配信'
+  },
+  djProgram: {
+    title: 'おすすめラジオ'
+  },
+  homeHero: {
+    dailyRecommend: '毎日のおすすめ',
+    songs: '曲',
+    playNow: '今すぐ再生',
+    intelligenceMode: 'インテリジェンスモード',
+    intelligenceModeOn: '再生中',
+    intelligenceModeDesc: 'スマート推薦を開始',
+    intelligenceModeActiveDesc: 'あなたの好みに基づくスマート推薦',
+    startIntelligence: '開始',
+    stopIntelligence: '停止',
+    playing: '再生中',
+    toplistDesc: 'トレンド',
+    mvDesc: 'ミュージックビデオ',
+    playlistDesc: '厳選プレイリスト',
+    personalFm: 'パーソナルFM',
+    discoverMusic: '新しい音楽を発見',
+    personalFmDesc: 'あなたの好みに基づいて',
+    recentPlays: '最近再生した曲',
+    viewAll: 'すべて表示',
+    followedArtists: 'フォロー中',
+    newSongs: '曲の新曲',
+    fromFollowedArtists: 'フォロー中のアーティストから',
+    recommendNewMusic: 'おすすめ新曲',
+    newSongExpress: '新曲速報',
+    discoverNewReleases: '最新リリースを見つけよう',
+    hotPlaylists: '人気プレイリスト',
+    hotArtists: '人気アーティスト',
+    hotArtistsTitle: '人気アーティスト',
+    hotArtistsDesc: '今最も人気のあるアーティスト',
+    fmTrash: '嫌い',
+    fmNext: '次へ',
+    quickNav: {
+      myFavorite: 'お気に入り',
+      playHistory: '再生履歴',
+      myProfile: 'マイページ',
+      toplist: 'ランキング'
+    }
   },
   searchBar: {
     login: 'ログイン',
@@ -119,7 +190,13 @@ export default {
     zoom: 'ページズーム',
     zoom100: '標準ズーム100%',
     resetZoom: 'クリックしてズームをリセット',
-    zoomDefault: '標準ズーム'
+    zoomDefault: '標準ズーム',
+    tabPlaylist: 'プレイリスト',
+    tabMv: 'MV',
+    tabCharts: 'チャート',
+    cancelSearch: 'キャンセル',
+    intelligenceMode: '心動モード',
+    exitIntelligence: '心動モードを終了'
   },
   titleBar: {
     closeTitle: '閉じる方法を選択してください',
@@ -145,6 +222,10 @@ export default {
     addToPlaylist: 'プレイリストに追加',
     addToPlaylistSuccess: 'プレイリストに追加しました',
     songsAlreadyInPlaylist: '楽曲は既にプレイリストに存在します',
+    locateCurrent: '再生中の曲を表示',
+    scrollToTop: 'トップに戻る',
+    compactLayout: 'コンパクト表示',
+    normalLayout: '通常表示',
     historyRecommend: '履歴の日次推薦',
     fetchDatesFailed: '日付リストの取得に失敗しました',
     fetchSongsFailed: '楽曲リストの取得に失敗しました',
@@ -174,6 +255,7 @@ export default {
       albumNamePlaceholder: 'アルバム名',
       addSongButton: '楽曲を追加',
       addLinkButton: 'リンクを追加',
+      options: 'オプション',
       importToStarPlaylist: 'お気に入りの音楽にインポート',
       playlistNamePlaceholder: 'プレイリスト名を入力してください',
       importButton: 'インポート開始',
@@ -218,5 +300,41 @@ export default {
   list: 'プレイリスト',
   mv: 'MV',
   home: 'ホーム',
-  search: '検索'
+  search: '検索',
+  album: 'アルバム',
+  localMusic: 'ローカル音楽',
+  pages: {
+    toplist: {
+      desc: '最も権威ある音楽チャート、今一番ホットな音楽を発見'
+    },
+    mv: {
+      desc: '素晴らしい動画コンテンツを探索',
+      loadingMore: 'もっと読み込み中...',
+      noMore: '— すべて読み込みました —',
+      area: {
+        all: 'すべて',
+        mainland: '中国大陸',
+        hktw: '香港・台湾',
+        western: '欧米',
+        japan: '日本',
+        korea: '韓国'
+      }
+    },
+    list: {
+      desc: 'もっと素敵なプレイリストを発見',
+      dailyRecommend: 'デイリーおすすめ'
+    },
+    search: {
+      desc: '今最もホットな検索トレンドを探索'
+    },
+    album: {
+      area: {
+        all: 'すべて',
+        chinese: '中華圏',
+        western: '欧米',
+        korea: '韓国',
+        japan: '日本'
+      }
+    }
+  }
 };

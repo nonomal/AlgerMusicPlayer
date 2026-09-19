@@ -3,531 +3,405 @@
     v-model:show="showModal"
     preset="dialog"
     :show-icon="false"
-    :mask-closable="!downloading"
-    :closable="!downloading"
-    class="update-app-modal"
+    :mask-closable="!isChecking"
+    :closable="!isChecking"
+    class="update-modal"
     style="width: 800px; max-width: 90vw"
   >
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="app-icon">
-          <img src="@/assets/logo.png" alt="App Icon" />
+    <div class="p-6 pb-4">
+      <div class="mb-6 flex items-center">
+        <div
+          class="mr-5 h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl shadow-lg ring-2 ring-neutral-100 dark:ring-neutral-800"
+        >
+          <img src="@/assets/logo.png" alt="App Icon" class="h-full w-full object-cover" />
         </div>
-        <div class="app-info">
-          <h2 class="app-name">{{ t('comp.update.title') }} {{ updateInfo.latestVersion }}</h2>
-          <p class="app-desc mb-2">
-            {{ t('comp.update.currentVersion') }} {{ updateInfo.currentVersion }}
-          </p>
+        <div class="min-w-0 flex-1">
+          <h2 class="mb-1.5 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+            {{ t('comp.update.title') }} {{ updateVersionText }}
+          </h2>
+          <div class="flex items-center gap-2">
+            <span
+              class="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
+            >
+              {{ t('comp.update.currentVersion') }} {{ currentVersionText }}
+            </span>
+            <span
+              v-if="showNewBadge"
+              class="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary dark:bg-primary/20"
+            >
+              NEW
+            </span>
+          </div>
         </div>
       </div>
-      <div class="update-info">
+
+      <div
+        v-if="hasReleaseNotes"
+        class="mb-6 overflow-hidden rounded-2xl bg-neutral-50 dark:bg-neutral-800/50"
+      >
         <n-scrollbar style="max-height: 300px">
-          <div class="update-body" v-html="parsedReleaseNotes"></div>
+          <div
+            class="update-body p-5 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300"
+            v-html="parsedReleaseNotes"
+          />
         </n-scrollbar>
       </div>
-      <div v-if="downloading" class="download-status mt-6">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm text-gray-500">{{ downloadStatus }}</span>
-          <span class="text-sm font-medium">{{ downloadProgress }}%</span>
+
+      <div
+        v-if="showProgressCard"
+        class="mb-6 rounded-2xl bg-neutral-50 p-4 dark:bg-neutral-800/50"
+      >
+        <div class="mb-2.5 flex items-center justify-between">
+          <span class="text-sm text-neutral-500 dark:text-neutral-400">{{ progressText }}</span>
+          <span class="text-sm font-bold text-primary">{{ progressPercent }}%</span>
         </div>
-        <div class="progress-bar-wrapper">
-          <div class="progress-bar" :style="{ width: `${downloadProgress}%` }"></div>
-        </div>
-      </div>
-      <div class="modal-actions" :class="{ 'mt-6': !downloading }">
-        <n-button class="cancel-btn" :disabled="downloading" @click="closeModal">
-          {{ t('comp.update.cancel') }}
-        </n-button>
-        <n-button
-          v-if="!downloading"
-          type="primary"
-          class="update-btn"
-          :disabled="downloading"
-          @click="handleUpdate"
+        <div
+          class="relative h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700"
         >
-          {{ downloadBtnText }}
-        </n-button>
-        <!-- 后台下载 -->
-        <n-button v-else class="update-btn" type="primary" @click="closeModal">
-          {{ t('comp.update.backgroundDownload') }}
-        </n-button>
+          <div
+            class="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-300 ease-out shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+            :style="{ width: `${progressPercent}%` }"
+          />
+        </div>
       </div>
-      <div v-if="!downloading" class="modal-desc mt-4 text-center">
-        <p class="text-xs text-gray-400">
-          {{ t('comp.installApp.downloadProblem') }}
-          <a
-            class="text-green-500"
-            target="_blank"
-            href="https://github.com/algerkong/AlgerMusicPlayer/releases"
-            >GitHub</a
-          >
-          {{ t('comp.installApp.downloadProblemLinkText') }}
-        </p>
+
+      <div
+        v-if="showErrorCard"
+        class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
+      >
+        <div class="mb-1 font-semibold">{{ t('comp.update.autoUpdateFailed') }}</div>
+        <div>{{ errorText }}</div>
       </div>
+
+      <div class="flex gap-3" :class="{ 'mt-6': !showProgressCard }">
+        <button
+          class="flex-1 rounded-xl bg-neutral-100 py-2.5 text-sm font-semibold text-neutral-600 transition-all duration-200 hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+          :disabled="isChecking"
+          @click="closeModal"
+        >
+          {{ t('comp.update.cancel') }}
+        </button>
+        <button
+          class="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] hover:bg-primary/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="primaryButtonDisabled"
+          @click="handlePrimaryAction"
+        >
+          {{ primaryButtonText }}
+        </button>
+      </div>
+
+      <p
+        v-if="showManualHint"
+        class="mt-4 text-center text-xs text-neutral-400 dark:text-neutral-500"
+      >
+        {{ t('comp.update.manualFallbackHint') }}
+      </p>
     </div>
   </n-modal>
 </template>
 
 <script setup lang="ts">
 import { marked } from 'marked';
-import { computed, h, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useSettingsStore } from '@/store/modules/settings';
-import { checkUpdate, getProxyNodes, UpdateResult } from '@/utils/update';
 
-import config from '../../../../package.json';
+import {
+  APP_UPDATE_STATUS,
+  type AppUpdateState,
+  createDefaultAppUpdateState
+} from '../../../shared/appUpdate';
+
+marked.setOptions({ breaks: true, gfm: true });
 
 const { t } = useI18n();
-const dialog = useDialog();
 const message = useMessage();
-
-// 配置 marked
-marked.setOptions({
-  breaks: true, // 支持 GitHub 风格的换行
-  gfm: true // 启用 GitHub 风格的 Markdown
-});
-
 const settingsStore = useSettingsStore();
 
 const showModal = computed({
   get: () => settingsStore.showUpdateModal,
-  set: (val) => settingsStore.setShowUpdateModal(val)
+  set: (value) => settingsStore.setShowUpdateModal(value)
 });
 
-const updateInfo = ref<UpdateResult>({
-  hasUpdate: false,
-  latestVersion: '',
-  currentVersion: config.version,
-  releaseInfo: null
-});
+const updateState = computed(() => settingsStore.appUpdateState);
+const isChecking = computed(() => updateState.value.status === APP_UPDATE_STATUS.checking);
+const isDownloading = computed(() => updateState.value.status === APP_UPDATE_STATUS.downloading);
+const isDownloaded = computed(() => updateState.value.status === APP_UPDATE_STATUS.downloaded);
+const showErrorCard = computed(() => updateState.value.status === APP_UPDATE_STATUS.error);
+const showManualHint = computed(() => showErrorCard.value);
+const showProgressCard = computed(() => isDownloading.value || isDownloaded.value);
+const showNewBadge = computed(
+  () =>
+    updateState.value.status === APP_UPDATE_STATUS.available ||
+    updateState.value.status === APP_UPDATE_STATUS.downloading ||
+    updateState.value.status === APP_UPDATE_STATUS.downloaded
+);
+const hasReleaseNotes = computed(() => Boolean(updateState.value.releaseNotes));
 
-// 解析 Markdown
+const currentVersionText = computed(() => updateState.value.currentVersion || '--');
+const updateVersionText = computed(() => updateState.value.availableVersion || '--');
+const progressPercent = computed(() => Math.round(updateState.value.downloadProgress));
+const errorText = computed(() => updateState.value.errorMessage || t('comp.update.downloadFailed'));
+
 const parsedReleaseNotes = computed(() => {
-  if (!updateInfo.value.releaseInfo?.body) return '';
+  const releaseNotes = updateState.value.releaseNotes;
+  if (!releaseNotes) return '';
+
   try {
-    return marked.parse(updateInfo.value.releaseInfo.body);
+    return marked.parse(releaseNotes) as string;
   } catch (error) {
-    console.error('Error parsing markdown:', error);
-    return updateInfo.value.releaseInfo.body;
+    console.error('Markdown 解析失败:', error);
+    return releaseNotes;
   }
 });
+
+const progressText = computed(() => {
+  if (isDownloaded.value) {
+    return t('comp.update.readyToInstall');
+  }
+
+  if (!isDownloading.value) {
+    return t('comp.update.prepareDownload');
+  }
+
+  const downloaded = formatBytes(updateState.value.downloadedBytes);
+  const total = formatBytes(updateState.value.totalBytes);
+  return `${t('comp.update.downloading')} ${downloaded} / ${total}`;
+});
+
+const primaryButtonText = computed(() => {
+  switch (updateState.value.status) {
+    case APP_UPDATE_STATUS.checking:
+      return t('comp.update.checking');
+    case APP_UPDATE_STATUS.available:
+      return t('comp.update.nowUpdate');
+    case APP_UPDATE_STATUS.downloading:
+      return t('comp.update.backgroundDownload');
+    case APP_UPDATE_STATUS.downloaded:
+      return t('comp.update.yesInstall');
+    case APP_UPDATE_STATUS.error:
+      return t('comp.update.openOfficialSite');
+    default:
+      return t('comp.update.nowUpdate');
+  }
+});
+
+const primaryButtonDisabled = computed(() => isChecking.value);
+
+const formatBytes = (bytes: number): string => {
+  if (!bytes) {
+    return '0 B';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const base = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** base;
+  return `${value.toFixed(base === 0 ? 0 : 2)} ${units[base]}`;
+};
+
+const syncUpdateState = (state: AppUpdateState) => {
+  const previousStatus = settingsStore.appUpdateState.status;
+  settingsStore.setAppUpdateState(state);
+
+  if (
+    state.status === APP_UPDATE_STATUS.available ||
+    state.status === APP_UPDATE_STATUS.downloaded
+  ) {
+    settingsStore.setShowUpdateModal(true);
+    return;
+  }
+
+  if (
+    state.status === APP_UPDATE_STATUS.error &&
+    (previousStatus === APP_UPDATE_STATUS.available ||
+      previousStatus === APP_UPDATE_STATUS.downloading)
+  ) {
+    settingsStore.setShowUpdateModal(true);
+  }
+};
 
 const closeModal = () => {
   showModal.value = false;
 };
 
-const checkForUpdates = async () => {
+const handlePrimaryAction = async () => {
   try {
-    const result = await checkUpdate(config.version);
-    if (result) {
-      updateInfo.value = result;
-      showModal.value = true;
+    switch (updateState.value.status) {
+      case APP_UPDATE_STATUS.available:
+        await window.api.downloadAppUpdate();
+        break;
+      case APP_UPDATE_STATUS.downloading:
+        closeModal();
+        break;
+      case APP_UPDATE_STATUS.downloaded:
+        await window.api.installAppUpdate();
+        break;
+      case APP_UPDATE_STATUS.error:
+        await window.api.openAppUpdatePage();
+        break;
+      default:
+        break;
     }
   } catch (error) {
-    console.error('检查更新失败:', error);
+    console.error('执行更新操作失败:', error);
+    message.error(t('comp.update.autoUpdateFailed'));
   }
 };
 
-const downloading = ref(false);
-const downloadProgress = ref(0);
-const downloadStatus = ref(t('comp.update.prepareDownload'));
-const downloadBtnText = computed(() => {
-  if (downloading.value) return t('comp.update.downloading');
-  return t('comp.update.nowUpdate');
-});
+const initializeUpdateState = async () => {
+  try {
+    const currentState = await window.api.getAppUpdateState();
+    syncUpdateState(currentState);
 
-// 下载完成后的文件路径
-const downloadedFilePath = ref('');
-// 防止对话框重复弹出
-const isDialogShown = ref(false);
-
-// 处理下载状态更新
-const handleDownloadProgress = (_event: any, progress: number, status: string) => {
-  downloadProgress.value = progress;
-  downloadStatus.value = status;
-};
-
-// 处理下载完成
-const handleDownloadComplete = (_event: any, success: boolean, filePath: string) => {
-  downloading.value = false;
-  closeModal();
-
-  if (success && !isDialogShown.value) {
-    downloadedFilePath.value = filePath;
-    isDialogShown.value = true;
-
-    // 复制文件路径到剪贴板
-    const copyFilePath = () => {
-      navigator.clipboard
-        .writeText(filePath)
-        .then(() => {
-          message.success(t('comp.update.copySuccess'));
-        })
-        .catch(() => {
-          message.error(t('comp.update.copyFailed'));
-        });
-    };
-
-    // 使用naive-ui的对话框询问用户是否安装
-    const dialogRef = dialog.create({
-      title: t('comp.update.installConfirmTitle'),
-      content: () =>
-        h('div', { class: 'update-dialog-content' }, [
-          h('p', { class: 'content-text' }, t('comp.update.installConfirmContent')),
-          h('div', { class: 'divider' }),
-          h('p', { class: 'manual-tip' }, t('comp.update.manualInstallTip')),
-          h('div', { class: 'file-path-container' }, [
-            h('div', { class: 'file-path-box' }, [
-              h('p', { class: 'file-path-label' }, t('comp.update.fileLocation')),
-              h('div', { class: 'file-path-value' }, filePath)
-            ]),
-            h(
-              'div',
-              {
-                class: 'copy-btn',
-                onClick: copyFilePath
-              },
-              [h('i', { class: 'ri-file-copy-line' }), h('span', t('comp.update.copy'))]
-            )
-          ])
-        ]),
-      positiveText: t('comp.update.yesInstall'),
-      negativeText: t('comp.update.noThanks'),
-      onPositiveClick: () => {
-        window.electron.ipcRenderer.send('install-update', filePath);
-      },
-      onNegativeClick: () => {
-        closeModal();
-        // 关闭当前窗口
-        dialogRef.destroy();
-      },
-      onClose: () => {
-        isDialogShown.value = false;
-      }
-    });
-  } else if (!success) {
-    message.error(t('comp.update.downloadFailed'));
+    if (currentState.supported && currentState.status === APP_UPDATE_STATUS.idle) {
+      await window.api.checkAppUpdate(false);
+    }
+  } catch (error) {
+    console.error('初始化更新状态失败:', error);
+    settingsStore.setAppUpdateState(createDefaultAppUpdateState());
   }
 };
 
-// 监听下载事件
 onMounted(() => {
-  checkForUpdates();
-  // 确保事件监听器只注册一次
-  window.electron.ipcRenderer.removeListener('download-progress', handleDownloadProgress);
-  window.electron.ipcRenderer.removeListener('download-complete', handleDownloadComplete);
-
-  window.electron.ipcRenderer.on('download-progress', handleDownloadProgress);
-  window.electron.ipcRenderer.on('download-complete', handleDownloadComplete);
+  window.api.removeAppUpdateListeners();
+  window.api.onAppUpdateState(syncUpdateState);
+  void initializeUpdateState();
 });
 
-// 清理事件监听
 onUnmounted(() => {
-  window.electron.ipcRenderer.removeListener('download-progress', handleDownloadProgress);
-  window.electron.ipcRenderer.removeListener('download-complete', handleDownloadComplete);
-  isDialogShown.value = false;
+  window.api.removeAppUpdateListeners();
 });
-
-const handleUpdate = async () => {
-  const assets = updateInfo.value.releaseInfo?.assets || [];
-  const { platform } = window.electron.process;
-  const arch = window.electron.ipcRenderer.sendSync('get-arch');
-  const version = updateInfo.value.latestVersion;
-  const downUrls = {
-    win32: {
-      all: `https://github.com/algerkong/AlgerMusicPlayer/releases/download/v${version}/AlgerMusicPlayer-${version}-win.exe`,
-      x64: `https://github.com/algerkong/AlgerMusicPlayer/releases/download/v${version}/AlgerMusicPlayer-${version}-win-x64.exe`,
-      ia32: `https://github.com/algerkong/AlgerMusicPlayer/releases/download/v${version}/AlgerMusicPlayer-${version}-win-ia32.exe`
-    },
-    darwin: {
-      x64: `https://github.com/algerkong/AlgerMusicPlayer/releases/download/v${version}/AlgerMusicPlayer-${version}-x64.dmg`,
-      arm64: `https://github.com/algerkong/AlgerMusicPlayer/releases/download/v${version}/AlgerMusicPlayer-${version}-arm64.dmg`
-    },
-    linux: {
-      AppImage: `https://github.com/algerkong/AlgerMusicPlayer/releases/download/v${version}/AlgerMusicPlayer-${version}-linux-x64.AppImage`,
-      deb: `https://github.com/algerkong/AlgerMusicPlayer/releases/download/v${version}/AlgerMusicPlayer-${version}-linux-x64.deb`
-    }
-  };
-
-  let downloadUrl = '';
-
-  // 根据平台和架构选择对应的安装包
-  if (platform === 'darwin') {
-    // macOS - 根据芯片架构选择对应的 DMG
-    const macArch = arch === 'arm64' ? 'arm64' : 'x64';
-    const macAsset = assets.find(
-      (asset) => asset.name.includes('mac') && asset.name.includes(macArch)
-    );
-    downloadUrl = macAsset?.browser_download_url || downUrls.darwin[macArch] || '';
-  } else if (platform === 'win32') {
-    // Windows
-    const winAsset = assets.find(
-      (asset) =>
-        asset.name.includes('win') &&
-        (arch === 'x64' ? asset.name.includes('x64') : asset.name.includes('ia32'))
-    );
-    downloadUrl =
-      winAsset?.browser_download_url || downUrls.win32[arch] || downUrls.win32.all || '';
-  } else if (platform === 'linux') {
-    // Linux
-    const linuxAsset = assets.find(
-      (asset) =>
-        (asset.name.endsWith('.AppImage') || asset.name.endsWith('.deb')) &&
-        asset.name.includes('x64')
-    );
-    downloadUrl = linuxAsset?.browser_download_url || downUrls.linux[arch] || '';
-  }
-
-  if (downloadUrl) {
-    try {
-      downloading.value = true;
-      downloadStatus.value = t('comp.update.prepareDownload');
-      isDialogShown.value = false;
-
-      // 获取代理节点列表
-      const proxyHosts = await getProxyNodes();
-      const proxyDownloadUrl = `${proxyHosts[0]}/${downloadUrl}`;
-
-      // 发送所有可能的下载地址到主进程
-      window.electron.ipcRenderer.send('start-download', proxyDownloadUrl);
-    } catch (error) {
-      downloading.value = false;
-      message.error(t('comp.update.startFailed'));
-      console.error('下载失败:', error);
-    }
-  } else {
-    message.error(t('comp.update.noDownloadUrl'));
-    window.open('https://github.com/algerkong/AlgerMusicPlayer/releases/latest', '_blank');
-  }
-};
 </script>
 
-<style lang="scss" scoped>
-.update-app-modal {
-  :deep(.n-modal) {
-    @apply max-w-4xl;
-  }
-  .modal-content {
-    @apply p-6 pb-4;
-    .modal-header {
-      @apply flex items-center mb-6;
-      .app-icon {
-        @apply w-24 h-24 mr-6 rounded-2xl overflow-hidden;
-        img {
-          @apply w-full h-full object-cover;
-        }
-      }
-      .app-info {
-        @apply flex-1;
-        .app-name {
-          @apply text-2xl font-bold mb-2;
-        }
-        .app-desc {
-          @apply text-base text-gray-400;
-        }
-      }
-    }
-    .update-info {
-      @apply mb-6 rounded-lg bg-gray-50 dark:bg-gray-800;
-      .update-title {
-        @apply text-base font-medium p-4 pb-2;
-      }
-      .update-body {
-        @apply p-4 pt-2 text-gray-600 dark:text-gray-300 rounded-lg overflow-hidden;
-
-        :deep(h1) {
-          @apply text-xl font-bold mb-3;
-        }
-        :deep(h2) {
-          @apply text-lg font-bold mb-3;
-        }
-        :deep(h3) {
-          @apply text-base font-bold mb-2;
-        }
-        :deep(p) {
-          @apply mb-3 leading-relaxed;
-        }
-        :deep(ul) {
-          @apply list-disc list-inside mb-3;
-        }
-        :deep(ol) {
-          @apply list-decimal list-inside mb-3;
-        }
-        :deep(li) {
-          @apply mb-2 leading-relaxed;
-        }
-        :deep(code) {
-          @apply px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200;
-        }
-        :deep(pre) {
-          @apply p-3 rounded bg-gray-100 dark:bg-gray-700 overflow-x-auto mb-3;
-          code {
-            @apply bg-transparent p-0;
-          }
-        }
-        :deep(blockquote) {
-          @apply pl-4 border-l-4 border-gray-200 dark:border-gray-600 mb-3;
-        }
-        :deep(a) {
-          @apply text-green-500 hover:text-green-600 dark:hover:text-green-400;
-        }
-        :deep(hr) {
-          @apply my-4 border-gray-200 dark:border-gray-600;
-        }
-        :deep(table) {
-          @apply w-full mb-3;
-          th,
-          td {
-            @apply px-3 py-2 border border-gray-200 dark:border-gray-600;
-          }
-          th {
-            @apply bg-gray-100 dark:bg-gray-700;
-          }
-        }
-      }
-    }
-    .download-status {
-      @apply p-2;
-      .progress-bar-wrapper {
-        @apply w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden;
-        .progress-bar {
-          @apply h-full bg-green-500 rounded-full transition-all duration-300 ease-out;
-          box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
-        }
-      }
-    }
-    .modal-actions {
-      @apply flex gap-4;
-      .n-button {
-        @apply flex-1 text-base py-2;
-      }
-      .cancel-btn {
-        @apply bg-gray-800 text-gray-300 border-none;
-        &:hover {
-          @apply bg-gray-700;
-        }
-        &:disabled {
-          @apply opacity-50 cursor-not-allowed;
-        }
-      }
-      .update-btn {
-        @apply bg-green-600 border-none;
-        &:hover {
-          @apply bg-green-500;
-        }
-        &:disabled {
-          @apply opacity-50 cursor-not-allowed;
-        }
-      }
-    }
-  }
-}
-</style>
-
-<style lang="scss" scoped>
-/* 对话框内容样式 */
-.update-dialog-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  .content-text {
-    font-size: 16px;
-    font-weight: 500;
-  }
-
-  .divider {
-    width: 100%;
-    height: 1px;
-    background-color: #e5e7eb;
-    margin: 4px 0;
-  }
-
-  .manual-tip {
-    font-size: 14px;
-    color: #6b7280;
-  }
-
-  .file-path-container {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 8px;
-
-    .file-path-box {
-      flex: 1;
-
-      .file-path-label {
-        font-size: 12px;
-        color: #6b7280;
-        margin-bottom: 4px;
-      }
-
-      .file-path-value {
-        padding: 8px;
-        border-radius: 4px;
-        background-color: #f3f4f6;
-        font-size: 12px;
-        font-family: monospace;
-        color: #1f2937;
-        word-break: break-all;
-      }
-    }
-
-    .copy-btn {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 8px 12px;
-      border-radius: 4px;
-      background-color: #e5e7eb;
-      color: #4b5563;
-      font-size: 12px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-
-      &:hover {
-        background-color: #d1d5db;
-      }
-
-      i {
-        font-size: 14px;
-      }
-    }
-  }
+<style scoped>
+.update-modal :deep(.n-dialog) {
+  border-radius: 1.25rem;
+  overflow: hidden;
 }
 
-/* 深色模式样式 */
-.dark .update-dialog-content {
-  .divider {
-    background-color: #374151;
-  }
+.update-body :deep(h1) {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
 
-  .manual-tip {
-    color: #9ca3af;
-  }
+.update-body :deep(h2) {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
 
-  .file-path-container {
-    .file-path-box {
-      .file-path-label {
-        color: #9ca3af;
-      }
+.update-body :deep(h3) {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
 
-      .file-path-value {
-        background-color: #1f2937;
-        color: #d1d5db;
-      }
-    }
+.update-body :deep(p) {
+  margin-bottom: 0.75rem;
+  line-height: 1.625;
+}
 
-    .copy-btn {
-      background-color: #374151;
-      color: #d1d5db;
+.update-body :deep(ul) {
+  list-style-type: disc;
+  list-style-position: inside;
+  margin-bottom: 0.75rem;
+}
 
-      &:hover {
-        background-color: #4b5563;
-      }
-    }
-  }
+.update-body :deep(ol) {
+  list-style-type: decimal;
+  list-style-position: inside;
+  margin-bottom: 0.75rem;
+}
+
+.update-body :deep(li) {
+  margin-bottom: 0.5rem;
+  line-height: 1.625;
+}
+
+.update-body :deep(code) {
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  background-color: rgb(245 245 245);
+}
+
+.dark .update-body :deep(code) {
+  background-color: rgb(64 64 64);
+}
+
+.update-body :deep(pre) {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+  background-color: rgb(245 245 245);
+}
+
+.dark .update-body :deep(pre) {
+  background-color: rgb(64 64 64);
+}
+
+.update-body :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
+}
+
+.update-body :deep(blockquote) {
+  padding-left: 1rem;
+  border-left: 0.25rem solid rgb(229 229 229);
+  margin-bottom: 0.75rem;
+  color: rgb(115 115 115);
+}
+
+.dark .update-body :deep(blockquote) {
+  border-left-color: rgb(82 82 82);
+  color: rgb(163 163 163);
+}
+
+.update-body :deep(a) {
+  color: rgb(var(--primary-color));
+  text-decoration: underline;
+}
+
+.update-body :deep(a:hover) {
+  opacity: 0.85;
+}
+
+.update-body :deep(hr) {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px solid rgb(229 229 229);
+}
+
+.dark .update-body :deep(hr) {
+  border-top-color: rgb(82 82 82);
+}
+
+.update-body :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75rem;
+}
+
+.update-body :deep(th),
+.update-body :deep(td) {
+  border: 1px solid rgb(229 229 229);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.dark .update-body :deep(th),
+.dark .update-body :deep(td) {
+  border-color: rgb(82 82 82);
+}
+
+.update-body :deep(th) {
+  background-color: rgb(245 245 245);
+}
+
+.dark .update-body :deep(th) {
+  background-color: rgb(64 64 64);
 }
 </style>

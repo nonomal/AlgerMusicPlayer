@@ -1,120 +1,134 @@
 <template>
-  <div class="list-page">
-    <!-- 修改歌单分类部分 -->
-    <div class="play-list-type">
-      <n-scrollbar ref="scrollbarRef" x-scrollable>
-        <div class="categories-wrapper" @wheel.prevent="handleWheel">
-          <span
-            v-for="(item, index) in playlistCategory?.sub"
-            :key="item.name"
-            class="play-list-type-item"
-            :class="[setAnimationClass('animate__bounceIn'), { active: currentType === item.name }]"
-            :style="getAnimationDelay(index)"
-            @click="handleClickPlaylistType(item.name)"
-          >
-            {{ item.name }}
-          </span>
+  <sticky-tab-page
+    ref="pageRef"
+    :title="listTitle"
+    :description="t('comp.pages.list.desc')"
+    :model-value="currentType"
+    :categories="playlistCategory?.sub || []"
+    label-key="name"
+    value-key="name"
+    @change="handleTypeChange"
+    @scroll="handleScroll"
+  >
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+      <!-- Loading State -->
+      <template v-if="loading && page === 0">
+        <div v-for="i in 15" :key="`loading-${i}`" class="space-y-3">
+          <div class="aspect-square skeleton-shimmer rounded-2xl" />
+          <div class="h-4 w-3/4 skeleton-shimmer rounded-lg" />
         </div>
-      </n-scrollbar>
-    </div>
-    <!-- 歌单列表 -->
-    <n-scrollbar
-      class="recommend"
-      style="height: calc(100% - 55px)"
-      :size="100"
-      @scroll="handleScroll"
-    >
-      <div v-loading="loading" class="recommend-list">
+      </template>
+
+      <!-- Content State -->
+      <template v-else>
         <div
           v-for="(item, index) in recommendList"
           :key="item.id"
-          class="recommend-item"
-          :class="setAnimationClass('animate__bounceIn')"
-          :style="getItemAnimationDelay(index)"
+          class="list-card group cursor-pointer"
+          :class="{ 'animate-item': !animatedIds.has(item.id) }"
+          :style="{
+            animationDelay: !animatedIds.has(item.id)
+              ? calculateAnimationDelay(index % TOTAL_ITEMS, 0.05)
+              : '0s'
+          }"
           @click.stop="openPlaylist(item)"
+          @animationend="animatedIds.add(item.id)"
         >
-          <div class="recommend-item-img">
-            <n-image
-              class="recommend-item-img-img"
-              :src="getImgUrl(item.picUrl || item.coverImgUrl, '300y300')"
-              width="200"
-              height="200"
-              lazy
-              preview-disabled
+          <!-- Cover Image -->
+          <div
+            class="relative aspect-square overflow-hidden rounded-2xl shadow-md group-hover:shadow-xl transition-all duration-500"
+          >
+            <img
+              :src="getImgUrl(item.picUrl || item.coverImgUrl, '400y400')"
+              :alt="item.name"
+              class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              loading="lazy"
             />
-            <div class="top">
-              <div class="play-count">{{ formatNumber(item.playCount) }}</div>
-              <i class="iconfont icon-videofill"></i>
+
+            <!-- Play Overlay -->
+            <div
+              class="absolute inset-0 bg-transparent group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center"
+            >
+              <div
+                class="play-icon w-12 h-12 rounded-full bg-white/90 flex items-center justify-center opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 shadow-xl"
+              >
+                <i class="ri-play-fill text-2xl text-neutral-900 ml-1"></i>
+              </div>
+            </div>
+
+            <!-- Play Count Badge -->
+            <div
+              class="absolute top-3 right-3 px-2 py-1 rounded-lg bg-black/40 backdrop-blur-md text-white text-[10px] font-bold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            >
+              <i class="ri-play-fill"></i>
+              {{ formatNumber(item.playCount) }}
             </div>
           </div>
-          <div class="recommend-item-title">{{ item.name }}</div>
+
+          <!-- Info -->
+          <div class="mt-3 space-y-1">
+            <h3
+              class="text-sm md:text-base font-bold text-neutral-900 dark:text-white line-clamp-1 group-hover:text-primary transition-colors"
+            >
+              {{ item.name }}
+            </h3>
+          </div>
         </div>
-      </div>
-      <!-- 加载状态 -->
-      <div v-if="isLoadingMore" class="loading-more">
-        <n-spin size="small" />
-        <span class="ml-2">加载中...</span>
-      </div>
-      <div v-if="!hasMore && recommendList.length > 0" class="no-more">没有更多了</div>
-    </n-scrollbar>
-  </div>
+      </template>
+    </div>
+
+    <!-- 加载更多 -->
+    <div v-if="isLoadingMore" class="flex justify-center items-center py-8">
+      <n-spin size="small" />
+      <span class="ml-2 text-neutral-500">{{ t('common.loading') }}</span>
+    </div>
+    <div v-if="!hasMore && recommendList.length > 0" class="text-center py-8 text-neutral-500">
+      {{ t('common.noMore') }}
+    </div>
+  </sticky-tab-page>
 </template>
 
 <script lang="ts" setup>
+import { nextTick, onDeactivated, onMounted, reactive, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { getPlaylistCategory } from '@/api/home';
-import { getListByCat, getListDetail } from '@/api/list';
+import { getListByCat } from '@/api/list';
 import { navigateToMusicList } from '@/components/common/MusicListNavigator';
-import type { IRecommendItem } from '@/types/list';
-import type { IListDetail } from '@/types/listDetail';
+import StickyTabPage from '@/components/common/StickyTabPage.vue';
 import type { IPlayListSort } from '@/types/playlist';
-import { formatNumber, getImgUrl, setAnimationClass, setAnimationDelay } from '@/utils';
+import { calculateAnimationDelay, formatNumber, getImgUrl } from '@/utils';
 
 defineOptions({
   name: 'List'
 });
 
-const TOTAL_ITEMS = 42; // 每页数量
+const { t } = useI18n();
+const TOTAL_ITEMS = 42;
 
 const recommendList = ref<any[]>([]);
 const page = ref(0);
 const hasMore = ref(true);
 const isLoadingMore = ref(false);
-
-// 计算每个项目的动画延迟
-const getItemAnimationDelay = (index: number) => {
-  const currentPageIndex = index % TOTAL_ITEMS;
-  return setAnimationDelay(currentPageIndex, 30);
-};
-
-const recommendItem = ref<IRecommendItem | null>();
-const listDetail = ref<IListDetail | null>();
-const listLoading = ref(true);
+const animatedIds = reactive(new Set<number>());
+const pageRef = ref();
 
 const router = useRouter();
 
 const openPlaylist = (item: any) => {
-  recommendItem.value = item;
-  listLoading.value = true;
-
-  getListDetail(item.id).then((res) => {
-    listDetail.value = res.data;
-    listLoading.value = false;
-
-    navigateToMusicList(router, {
-      id: item.id,
-      type: 'playlist',
-      name: item.name,
-      songList: res.data.playlist.tracks || [],
-      listInfo: res.data.playlist,
-      canRemove: false
-    });
+  navigateToMusicList(router, {
+    id: item.id,
+    type: 'playlist',
+    name: item.name,
+    listInfo: item,
+    canRemove: false
   });
 };
 
 const route = useRoute();
-const listTitle = ref(route.query.type || '歌单列表');
+const DEFAULT_CAT = '每日推荐';
+const listTitle = ref((route.query.type as string) || t('comp.pages.list.dailyRecommend'));
 
 const loading = ref(false);
 const loadList = async (type: string, isLoadMore = false) => {
@@ -125,15 +139,21 @@ const loadList = async (type: string, isLoadMore = false) => {
     loading.value = true;
     page.value = 0;
     recommendList.value = [];
+    await nextTick();
+    pageRef.value?.scrollTo({ top: 0 });
   }
 
   try {
     const params = {
-      cat: type === '每日推荐' ? '' : type,
+      cat: type === DEFAULT_CAT ? '' : type,
       limit: TOTAL_ITEMS,
       offset: page.value * TOTAL_ITEMS
     };
     const { data } = await getListByCat(params);
+    // 竞态守卫：返回时若分类已切换，丢弃过期结果，避免旧分类覆盖新分类
+    if (type !== currentType.value) {
+      return;
+    }
     if (isLoadMore) {
       recommendList.value.push(...data.playlists);
     } else {
@@ -149,31 +169,23 @@ const loadList = async (type: string, isLoadMore = false) => {
   }
 };
 
-// 监听滚动事件
 const handleScroll = (e: any) => {
   const { scrollTop, scrollHeight, clientHeight } = e.target;
-  // 距离底部100px时加载更多
   if (scrollTop + clientHeight >= scrollHeight - 100 && !isLoadingMore.value && hasMore.value) {
     loadList(currentType.value, true);
   }
 };
 
-// 添加歌单分类相关的代码
 const playlistCategory = ref<IPlayListSort>();
-const currentType = ref((route.query.type as string) || '每日推荐');
+const currentType = ref((route.query.type as string) || DEFAULT_CAT);
 
-const getAnimationDelay = computed(() => {
-  return (index: number) => setAnimationDelay(index, 30);
-});
-
-// 加载歌单分类
 const loadPlaylistCategory = async () => {
   const { data } = await getPlaylistCategory();
   playlistCategory.value = {
     ...data,
     sub: [
       {
-        name: '每日推荐',
+        name: DEFAULT_CAT,
         category: 0
       },
       ...data.sub
@@ -181,157 +193,48 @@ const loadPlaylistCategory = async () => {
   };
 };
 
-const handleClickPlaylistType = (type: string) => {
-  currentType.value = type;
-  listTitle.value = type;
-  loading.value = true;
-  loadList(type);
-};
-
-const scrollbarRef = ref();
-
-const handleWheel = (e: WheelEvent) => {
-  const scrollbar = scrollbarRef.value;
-  if (scrollbar) {
-    const delta = e.deltaY || e.detail;
-    scrollbar.scrollBy({ left: delta });
-  }
+const handleTypeChange = (type: string) => {
+  router.replace({ query: { ...route.query, type } });
 };
 
 onMounted(() => {
-  loadPlaylistCategory(); // 添加加载歌单分类
+  loadPlaylistCategory();
   currentType.value = (route.query.type as string) || currentType.value;
   loadList(currentType.value);
+});
+
+onDeactivated(() => {
+  recommendList.value.forEach((item) => animatedIds.add(item.id));
 });
 
 watch(
   () => route.query,
   async (newParams) => {
-    if (newParams.type) {
-      recommendList.value = [];
-      listTitle.value = newParams.type || '歌单列表';
-      currentType.value = newParams.type as string;
+    if (route.path !== '/list') return;
+    const newType = (newParams.type as string) || DEFAULT_CAT;
+    if (newType !== currentType.value) {
+      listTitle.value = newType === DEFAULT_CAT ? t('comp.pages.list.dailyRecommend') : newType;
+      currentType.value = newType;
       loading.value = true;
-      loadList(newParams.type as string);
+      loadList(newType);
     }
   }
 );
 </script>
 
 <style lang="scss" scoped>
-.list-page {
-  @apply relative h-full w-full;
-  @apply bg-light dark:bg-black;
+.animate-item {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-.recommend {
-  &-title {
-    @apply text-lg font-bold pb-2;
-    @apply text-gray-900 dark:text-white;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
   }
-
-  &-list {
-    @apply grid gap-x-8 gap-y-6 pb-28 pr-4;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  }
-
-  &-item {
-    @apply flex flex-col;
-
-    &-img {
-      @apply rounded-xl overflow-hidden relative w-full aspect-square;
-
-      &-img {
-        @apply block w-full h-full;
-      }
-
-      img {
-        @apply absolute top-0 left-0 w-full h-full object-cover rounded-xl;
-      }
-
-      &:hover img {
-        @apply hover:scale-110 transition-all duration-300 ease-in-out;
-      }
-
-      .top {
-        @apply absolute w-full h-full top-0 left-0 flex justify-center items-center transition-all duration-300 ease-in-out cursor-pointer;
-        @apply bg-black bg-opacity-50;
-        opacity: 0;
-
-        i {
-          @apply text-5xl text-white transition-all duration-500 ease-in-out opacity-0;
-        }
-
-        &:hover {
-          @apply opacity-100;
-        }
-
-        &:hover i {
-          @apply transform scale-150 opacity-100;
-        }
-
-        .play-count {
-          @apply absolute top-2 left-2 text-sm text-white;
-        }
-      }
-    }
-
-    &-title {
-      @apply mt-2 text-sm line-clamp-1;
-      @apply text-gray-900 dark:text-white;
-    }
-  }
-}
-
-.loading-more {
-  @apply flex justify-center items-center py-4;
-  @apply text-gray-500 dark:text-gray-400;
-}
-
-.no-more {
-  @apply text-center py-4;
-  @apply text-gray-500 dark:text-gray-400;
-}
-
-.mobile {
-  .recommend-title {
-    @apply text-xl font-bold px-4;
-  }
-
-  .recommend-list {
-    @apply px-4 gap-4;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  }
-}
-
-// 添加歌单分类样式
-.play-list-type {
-  .categories-wrapper {
-    @apply flex items-center py-2;
-    white-space: nowrap;
-  }
-
-  &-item {
-    @apply py-2 px-3 mr-3 inline-block rounded-xl cursor-pointer transition-all duration-300;
-    @apply bg-light dark:bg-black text-gray-900 dark:text-white;
-    @apply border border-gray-200 dark:border-gray-700;
-
-    &:hover {
-      @apply bg-green-50 dark:bg-green-900;
-    }
-
-    &.active {
-      @apply bg-green-500 border-green-500 text-white;
-    }
-  }
-}
-
-.mobile {
-  .play-list-type {
-    @apply mx-0 w-full;
-  }
-  .categories-wrapper {
-    @apply pl-4;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

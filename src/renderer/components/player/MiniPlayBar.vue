@@ -69,6 +69,7 @@
               v-model:value="volumeSlider"
               :step="0.01"
               :tooltip="false"
+              :disabled="isMuted"
               vertical
               @wheel.prevent="handleVolumeWheel"
             ></n-slider>
@@ -129,14 +130,32 @@ import { computed, provide, ref, useTemplateRef } from 'vue';
 import SongItem from '@/components/common/SongItem.vue';
 import { allTime, artistList, nowTime, playMusic } from '@/hooks/MusicHook';
 import { useArtist } from '@/hooks/useArtist';
+import { useFavorite } from '@/hooks/useFavorite';
+import { usePlaybackControl } from '@/hooks/usePlaybackControl';
+import { useVolumeControl } from '@/hooks/useVolumeControl';
 import { audioService } from '@/services/audioService';
-import { isBilibiliIdMatch, usePlayerStore, useSettingsStore } from '@/store';
+import { usePlayerStore, useSettingsStore } from '@/store';
 import type { SongResult } from '@/types/music';
 import { getImgUrl } from '@/utils';
 
 const playerStore = usePlayerStore();
 const settingsStore = useSettingsStore();
 const { navigateToArtist } = useArtist();
+
+// 播放控制
+const { isPlaying: play, playMusicEvent, handleNext, handlePrev } = usePlaybackControl();
+
+// 音量控制（统一通过 playerStore 管理）
+const {
+  isMuted,
+  volumeSlider,
+  volumeIcon: getVolumeIcon,
+  mute,
+  handleVolumeWheel
+} = useVolumeControl();
+
+// 收藏
+const { isFavorite, toggleFavorite } = useFavorite();
 
 withDefaults(
   defineProps<{
@@ -155,87 +174,19 @@ const handleClose = () => {
   }
 };
 
-// 是否播放
-const play = computed(() => playerStore.play as boolean);
 // 播放列表
 const playList = computed(() => playerStore.playList as SongResult[]);
-
-// 音量控制
-const audioVolume = ref(
-  localStorage.getItem('volume') ? parseFloat(localStorage.getItem('volume') as string) : 1
-);
-
-const volumeSlider = computed({
-  get: () => audioVolume.value * 100,
-  set: (value) => {
-    localStorage.setItem('volume', (value / 100).toString());
-    audioService.setVolume(value / 100);
-    audioVolume.value = value / 100;
-  }
-});
-
-// 音量图标
-const getVolumeIcon = computed(() => {
-  if (audioVolume.value === 0) return 'ri-volume-mute-line';
-  if (audioVolume.value <= 0.5) return 'ri-volume-down-line';
-  return 'ri-volume-up-line';
-});
-
-// 静音
-const mute = () => {
-  if (volumeSlider.value === 0) {
-    volumeSlider.value = 30;
-  } else {
-    volumeSlider.value = 0;
-  }
-};
-
-// 鼠标滚轮调整音量
-const handleVolumeWheel = (e: WheelEvent) => {
-  // 向上滚动增加音量，向下滚动减少音量
-  const delta = e.deltaY < 0 ? 5 : -5;
-  const newValue = Math.min(Math.max(volumeSlider.value + delta, 0), 100);
-  volumeSlider.value = newValue;
-};
-
-// 收藏相关
-const isFavorite = computed(() => {
-  // 对于B站视频，使用ID匹配函数
-  if (playMusic.value.source === 'bilibili' && playMusic.value.bilibiliData?.bvid) {
-    return playerStore.favoriteList.some((id) => isBilibiliIdMatch(id, playMusic.value.id));
-  }
-
-  // 非B站视频直接比较ID
-  return playerStore.favoriteList.includes(playMusic.value.id);
-});
-
-const toggleFavorite = async (e: Event) => {
-  e.stopPropagation();
-
-  // 处理B站视频的收藏ID
-  let favoriteId = playMusic.value.id;
-  if (playMusic.value.source === 'bilibili' && playMusic.value.bilibiliData?.bvid) {
-    // 如果当前播放的是B站视频，且已有ID不包含--格式，则需要构造完整ID
-    if (!String(favoriteId).includes('--')) {
-      favoriteId = `${playMusic.value.bilibiliData.bvid}--${playMusic.value.song?.ar?.[0]?.id || 0}--${playMusic.value.bilibiliData.cid}`;
-    }
-  }
-
-  if (isFavorite.value) {
-    playerStore.removeFromFavorite(favoriteId);
-  } else {
-    playerStore.addToFavorite(favoriteId);
-  }
-};
 
 // 播放列表相关
 const palyListRef = useTemplateRef('palyListRef') as any;
 const isPlaylistOpen = ref(false);
 
 // 提供 openPlaylistDrawer 给子组件
+// Mini 窗口（340px 宽）容不下 420px 的歌单抽屉：记录待添加歌曲并恢复主窗口，
+// AppLayout 重新挂载后接力打开抽屉（#504）
 provide('openPlaylistDrawer', (songId: number) => {
-  console.log('打开歌单抽屉', songId);
-  // 由于在迷你模式不处理这个功能，所以只记录日志
+  localStorage.setItem('pendingAddToPlaylistSongId', String(songId));
+  window.api.restore();
 });
 
 // 切换播放列表显示/隐藏
@@ -321,19 +272,6 @@ const handleProgressLeave = () => {
   isHovering.value = false;
 };
 
-// 播放控制
-const handlePrev = () => playerStore.prevPlay();
-const handleNext = () => playerStore.nextPlay();
-
-const playMusicEvent = async () => {
-  try {
-    playerStore.setPlay(playerStore.playMusic);
-  } catch (error) {
-    console.error('播放出错:', error);
-    playerStore.nextPlay();
-  }
-};
-
 // 切换到完整播放器
 const setMusicFull = () => {
   playerStore.setMusicFull(true);
@@ -408,15 +346,11 @@ const setMusicFull = () => {
     }
 
     .progress-bar {
-      height: 2px !important;
+      height: 3px !important;
+      transform: scaleY(0.67);
 
       &:hover {
-        height: 3px !important;
-
-        .progress-track,
-        .progress-fill {
-          height: 3px !important;
-        }
+        transform: scaleY(1);
       }
     }
   }
@@ -509,21 +443,19 @@ const setMusicFull = () => {
 
 .progress-bar {
   @apply relative w-full cursor-pointer;
-  height: 2px;
+  height: 4px;
+  transform: scaleY(0.5);
+  transform-origin: bottom center;
+  transition: transform 0.2s ease;
 
   &:hover {
-    height: 4px;
-
-    .progress-track,
-    .progress-fill {
-      height: 4px;
-    }
+    transform: scaleY(1);
   }
 }
 
 .progress-track {
-  @apply absolute inset-x-0 bottom-0 transition-all duration-200;
-  height: 2px;
+  @apply absolute inset-x-0 bottom-0 transition-colors duration-200;
+  height: 4px;
   background: rgba(0, 0, 0, 0.1);
 
   .dark & {
@@ -532,9 +464,10 @@ const setMusicFull = () => {
 }
 
 .progress-fill {
-  @apply absolute bottom-0 left-0 transition-all duration-200;
-  height: 2px;
+  @apply absolute bottom-0 left-0;
+  height: 4px;
   background: var(--primary-color, #18a058);
+  transition: background-color 0.2s ease;
 }
 
 .like-active {

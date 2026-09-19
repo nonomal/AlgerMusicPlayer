@@ -3,6 +3,7 @@ export default {
     play: '播放',
     playNext: '下一首播放',
     download: '下载歌曲',
+    downloadLyric: '下载歌词',
     addToPlaylist: '添加到歌单',
     favorite: '喜欢',
     unfavorite: '取消喜欢',
@@ -12,10 +13,14 @@ export default {
   },
   message: {
     downloading: '正在下载中，请稍候...',
+    addToPlaylistNeedLogin: '请使用 Cookie 或扫码登录后再添加到歌单（UID 登录无法使用此功能）',
     downloadFailed: '下载失败',
     downloadQueued: '已加入下载队列',
     addedToNextPlay: '已添加到下一首播放',
-    getUrlFailed: '获取音乐下载地址失败，请检查是否登录'
+    getUrlFailed: '获取音乐下载地址失败，请检查是否登录',
+    noLyric: '该歌曲暂无歌词',
+    lyricDownloaded: '歌词下载成功',
+    lyricDownloadFailed: '歌词下载失败'
   },
   dialog: {
     dislike: {

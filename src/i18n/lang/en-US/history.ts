@@ -6,7 +6,12 @@ export default {
   categoryTabs: {
     songs: 'Songs',
     playlists: 'Playlists',
-    albums: 'Albums'
+    albums: 'Albums',
+    podcasts: 'Podcasts'
+  },
+  podcastTabs: {
+    episodes: 'Episodes',
+    radios: 'Radios'
   },
   tabs: {
     all: 'All Records',
@@ -18,7 +23,6 @@ export default {
   merging: 'Merging records...',
   noDescription: 'No description',
   noData: 'No records',
-  newKey: 'New translation',
   heatmap: {
     title: 'Play Heatmap',
     loading: 'Loading data...',

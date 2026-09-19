@@ -16,6 +16,9 @@ export default {
   playFailed: '当前歌曲播放失败，播放下一首',
   parseFailedPlayNext: '歌曲解析失败，播放下一首',
   consecutiveFailsError: '播放遇到错误，可能是网络波动或解析源失效，请切换播放列表或稍后重试',
+  playListEnded: '已播放到列表最后一首',
+  autoResumed: '已自动恢复播放',
+  resumeFailed: '恢复播放失败，请手动点击播放',
   playMode: {
     sequence: '顺序播放',
     loop: '单曲循环',
@@ -55,6 +58,7 @@ export default {
     eq: '均衡器',
     playList: '播放列表',
     reparse: '重新解析',
+    download: '下载',
     playMode: {
       sequence: '顺序播放',
       loop: '循环播放',

@@ -3,6 +3,7 @@ export default {
     play: '재생',
     playNext: '다음에 재생',
     download: '곡 다운로드',
+    downloadLyric: '가사 다운로드',
     addToPlaylist: '플레이리스트에 추가',
     favorite: '좋아요',
     unfavorite: '좋아요 취소',
@@ -12,10 +13,15 @@ export default {
   },
   message: {
     downloading: '다운로드 중입니다. 잠시 기다려주세요...',
+    addToPlaylistNeedLogin:
+      '플레이리스트에 추가하려면 Cookie 또는 QR 코드로 로그인하세요 (UID 로그인은 사용 불가)',
     downloadFailed: '다운로드 실패',
     downloadQueued: '다운로드 대기열에 추가됨',
     addedToNextPlay: '다음 재생에 추가됨',
-    getUrlFailed: '음악 다운로드 주소 가져오기 실패, 로그인 상태를 확인하세요'
+    getUrlFailed: '음악 다운로드 주소 가져오기 실패, 로그인 상태를 확인하세요',
+    noLyric: '이 곡에는 가사가 없습니다',
+    lyricDownloaded: '가사 다운로드 완료',
+    lyricDownloadFailed: '가사 다운로드 실패'
   },
   dialog: {
     dislike: {

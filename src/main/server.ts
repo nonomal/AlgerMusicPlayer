@@ -1,16 +1,18 @@
 import { ipcMain } from 'electron';
-import Store from 'electron-store';
 import fs from 'fs';
-import server from 'netease-cloud-music-api-alger/server';
 import os from 'os';
 import path from 'path';
 
+import { getSharedStore } from './modules/config';
 import { type Platform, unblockMusic } from './unblockMusic';
 
-const store = new Store();
+// 必须在 import netease-cloud-music-api-alger 之前创建 anonymous_token 文件
+// 否则模块加载时 readFileSync 会因文件不存在而崩溃
 if (!fs.existsSync(path.resolve(os.tmpdir(), 'anonymous_token'))) {
   fs.writeFileSync(path.resolve(os.tmpdir(), 'anonymous_token'), '', 'utf-8');
 }
+
+const store = getSharedStore();
 
 // 设置音乐解析的处理程序
 ipcMain.handle('unblock-music', async (_event, id, songData, enabledSources) => {
@@ -66,8 +68,11 @@ async function startMusicApi(): Promise<void> {
   }
 
   try {
+    const server = require('netease-cloud-music-api-alger/server');
     await server.serveNcmApi({
-      port
+      port,
+      // 安全默认值：仅监听本机回环地址，避免对局域网暴露
+      host: '127.0.0.1'
     });
     console.log(`MUSIC API STARTED on port ${port}`);
   } catch (error) {

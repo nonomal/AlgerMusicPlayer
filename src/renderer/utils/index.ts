@@ -32,16 +32,32 @@ export const setAnimationDelay = (index: number = 6, time: number = 50) => {
   return `animation-delay:${(index * time) / (speed * 2)}ms`;
 };
 
-// 将秒转换为分钟和秒
+// 计算动画延迟(秒) - 用于新的动画效果
+// 根据动画速度配置自动调整延迟时间
+export const calculateAnimationDelay = (index: any, baseDelay: number = 0.03): string => {
+  const settingsStore = useSettingsStore();
+  if (settingsStore.setData?.noAnimate) {
+    return '0s';
+  }
+  const speed = settingsStore.setData?.animationSpeed || 1;
+  // 速度越快，延迟应该越短，所以除以 speed
+  const delay = (index * baseDelay) / speed;
+  return `${delay.toFixed(3)}s`;
+};
+
+// 将秒转换为时长字符串：<1 小时为 mm:ss，>=1 小时进位为 h:mm:ss
 export const secondToMinute = (s: number) => {
-  if (!s) {
+  if (!s || s < 0) {
     return '00:00';
   }
-  const minute: number = Math.floor(s / 60);
+  const hour: number = Math.floor(s / 3600);
+  const minute: number = Math.floor((s % 3600) / 60);
   const second: number = Math.floor(s % 60);
-  const minuteStr: string = minute > 9 ? minute.toString() : `0${minute.toString()}`;
-  const secondStr: string = second > 9 ? second.toString() : `0${second.toString()}`;
-  return `${minuteStr}:${secondStr}`;
+  const pad = (n: number): string => (n > 9 ? `${n}` : `0${n}`);
+  if (hour > 0) {
+    return `${hour}:${pad(minute)}:${pad(second)}`;
+  }
+  return `${pad(minute)}:${pad(second)}`;
 };
 
 // 格式化数字 千,万, 百万, 千万,亿
@@ -62,6 +78,9 @@ export const formatNumber = (num: string | number) => {
 
 export const getImgUrl = (url: string | undefined, size: string = '') => {
   if (!url) return '';
+
+  // base64 Data URL 和本地文件路径不需要添加尺寸参数
+  if (url.startsWith('data:') || url.startsWith('local://')) return url;
 
   if (url.includes('thumbnail')) {
     // 只替换最后一个 thumbnail 参数的尺寸

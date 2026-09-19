@@ -5,9 +5,7 @@ import { SongSourceConfigManager } from '@/services/SongSourceConfigManager';
 import { useSettingsStore } from '@/store';
 import type { SongResult } from '@/types/music';
 import { isElectron } from '@/utils';
-import requestMusic from '@/utils/request_music';
 
-import { searchAndGetBilibiliAudioUrl } from './bilibili';
 import type { ParsedMusicResult } from './gdmusic';
 import { parseFromGDMusic } from './gdmusic';
 import { LxMusicStrategy } from './lxMusicStrategy';
@@ -162,21 +160,11 @@ export class CacheManager {
       // 清除URL缓存
       await deleteData('music_url_cache', id);
       console.log(`清除歌曲 ${id} 的URL缓存`);
-
-      // 清除失败缓存 - 需要遍历所有策略
-      const strategies = ['custom', 'bilibili', 'gdmusic', 'unblockMusic'];
-      for (const strategy of strategies) {
-        const cacheKey = `${id}_${strategy}`;
-        try {
-          await deleteData('music_failed_cache', cacheKey);
-        } catch {
-          // 忽略删除不存在缓存的错误
-        }
-      }
-      console.log(`清除歌曲 ${id} 的失败缓存`);
     } catch (error) {
-      console.error('清除缓存失败:', error);
+      console.error('清除URL缓存失败:', error);
     }
+    // 清除内存失败缓存（覆盖所有策略，含 lxMusic）
+    CacheManager.clearFailedCache(id);
   }
 }
 
@@ -212,30 +200,6 @@ class RetryHelper {
 }
 
 /**
- * 从Bilibili获取音频URL
- * @param data 歌曲数据
- * @returns 解析结果
- */
-const getBilibiliAudio = async (data: SongResult) => {
-  const songName = data?.name || '';
-  const artistName =
-    Array.isArray(data?.ar) && data.ar.length > 0 && data.ar[0]?.name ? data.ar[0].name : '';
-  const albumName = data?.al && typeof data.al === 'object' && data.al?.name ? data.al.name : '';
-
-  const searchQuery = [songName, artistName, albumName].filter(Boolean).join(' ').trim();
-  console.log('开始搜索bilibili音频:', searchQuery);
-
-  const url = await searchAndGetBilibiliAudioUrl(searchQuery);
-  return {
-    data: {
-      code: 200,
-      message: 'success',
-      data: { url }
-    }
-  };
-};
-
-/**
  * 从GD音乐台获取音频URL
  * @param id 歌曲ID
  * @param data 歌曲数据
@@ -263,7 +227,19 @@ const getGDMusicAudio = async (id: number, data: SongResult): Promise<ParsedMusi
 const getUnblockMusicAudio = (id: number, data: SongResult, sources: any[]) => {
   const filteredSources = sources.filter((source) => source !== 'gdmusic');
   console.log(`使用unblockMusic解析，音源:`, filteredSources);
-  return window.api.unblockMusic(id, cloneDeep(data), cloneDeep(filteredSources));
+  // 整体超时兜底：unblock 全链路（IPC → match()）本身无超时，底层请求挂起时会
+  // 导致渲染进程无限等待、起播/切歌长时间无响应。超时解析为 null 以走降级，
+  // 且不抛异常（避免触发 RetryHelper 的多次重试放大等待时间）。
+  const UNBLOCK_TIMEOUT = 15000;
+  return Promise.race([
+    window.api.unblockMusic(id, cloneDeep(data), cloneDeep(filteredSources)),
+    new Promise((resolve) => {
+      setTimeout(() => {
+        console.warn(`unblockMusic 解析超时(${UNBLOCK_TIMEOUT}ms)，放弃等待`);
+        resolve(null);
+      }, UNBLOCK_TIMEOUT);
+    })
+  ]);
 };
 
 /**
@@ -364,46 +340,6 @@ class CustomApiStrategy implements MusicSourceStrategy {
 }
 
 /**
- * Bilibili解析策略
- */
-class BilibiliStrategy implements MusicSourceStrategy {
-  name = 'bilibili';
-  priority = 2;
-
-  canHandle(sources: string[]): boolean {
-    return sources.includes('bilibili');
-  }
-
-  async parse(id: number, data: SongResult): Promise<MusicParseResult | null> {
-    // 检查失败缓存
-    if (CacheManager.isInFailedCache(id, this.name)) {
-      return null;
-    }
-
-    try {
-      console.log('尝试使用Bilibili解析...');
-      const result = await RetryHelper.withRetry(async () => {
-        return await getBilibiliAudio(data);
-      });
-
-      const adaptedResult = adaptParseResult(result);
-      if (adaptedResult?.data?.data?.url) {
-        console.log('Bilibili解析成功');
-        return adaptedResult;
-      }
-
-      // 解析失败，添加失败缓存
-      CacheManager.addFailedCache(id, this.name);
-      return null;
-    } catch (error) {
-      console.error('Bilibili解析失败:', error);
-      CacheManager.addFailedCache(id, this.name);
-      return null;
-    }
-  }
-}
-
-/**
  * GD音乐台解析策略
  */
 class GDMusicStrategy implements MusicSourceStrategy {
@@ -451,9 +387,7 @@ class UnblockMusicStrategy implements MusicSourceStrategy {
   priority = 4;
 
   canHandle(sources: string[]): boolean {
-    const unblockSources = sources.filter(
-      (source) => !['custom', 'bilibili', 'gdmusic'].includes(source)
-    );
+    const unblockSources = sources.filter((source) => !['custom', 'gdmusic'].includes(source));
     return unblockSources.length > 0;
   }
 
@@ -470,7 +404,7 @@ class UnblockMusicStrategy implements MusicSourceStrategy {
 
     try {
       const unblockSources = (sources || []).filter(
-        (source) => !['custom', 'bilibili', 'gdmusic'].includes(source)
+        (source) => !['custom', 'gdmusic'].includes(source)
       );
       console.log('尝试使用UnblockMusic解析:', unblockSources);
 
@@ -502,7 +436,6 @@ class MusicSourceStrategyFactory {
   private static strategies: MusicSourceStrategy[] = [
     new LxMusicStrategy(),
     new CustomApiStrategy(),
-    new BilibiliStrategy(),
     new GDMusicStrategy(),
     new UnblockMusicStrategy()
   ];
@@ -555,6 +488,18 @@ const getMusicConfig = (id: number, settingsStore?: any) => {
 };
 
 /**
+ * 构造解析失败结果
+ * （原远端后备接口 music_proxy 已停止服务，解析失败时不再回退到远端请求）
+ */
+const buildFailedResult = (message: string, code = 404): MusicParseResult => ({
+  data: {
+    code,
+    message,
+    data: undefined
+  }
+});
+
+/**
  * 音乐解析器主类
  */
 export class MusicParser {
@@ -568,10 +513,10 @@ export class MusicParser {
     const startTime = performance.now();
 
     try {
-      // 非Electron环境直接使用API请求
+      // 非Electron环境不支持本地解析
       if (!isElectron) {
-        console.log('非Electron环境，使用API请求');
-        return await requestMusic.get<any>('/music', { params: { id } });
+        console.log('非Electron环境，不支持音乐解析');
+        return buildFailedResult('当前环境不支持音乐解析');
       }
 
       // 获取设置存储
@@ -579,8 +524,8 @@ export class MusicParser {
       try {
         settingsStore = useSettingsStore();
       } catch (error) {
-        console.error('无法获取设置存储，使用后备方案:', error);
-        return await requestMusic.get<any>('/music', { params: { id } });
+        console.error('无法获取设置存储:', error);
+        return buildFailedResult('无法读取设置，音乐解析不可用');
       }
 
       // 获取音源配置
@@ -609,8 +554,8 @@ export class MusicParser {
       }
 
       if (musicSources.length === 0) {
-        console.warn('没有配置可用的音源，使用后备方案');
-        return await requestMusic.get<any>('/music', { params: { id } });
+        console.warn('没有配置可用的音源');
+        return buildFailedResult('没有配置可用的音源');
       }
 
       // 获取可用的解析策略
@@ -620,8 +565,8 @@ export class MusicParser {
       );
 
       if (availableStrategies.length === 0) {
-        console.warn('没有可用的解析策略，使用后备方案');
-        return await requestMusic.get<any>('/music', { params: { id } });
+        console.warn('没有可用的解析策略');
+        return buildFailedResult('没有可用的解析策略');
       }
 
       console.log(
@@ -651,34 +596,13 @@ export class MusicParser {
         }
       }
 
-      console.warn('所有解析策略都失败了，使用后备方案');
+      console.warn('所有解析策略都失败了');
     } catch (error) {
-      console.error('MusicParser.parseMusic 执行异常，使用后备方案:', error);
+      console.error('MusicParser.parseMusic 执行异常:', error);
     }
 
-    // 后备方案：使用API请求
-    try {
-      console.log('使用后备方案：API请求');
-      const result = await requestMusic.get<any>('/music', { params: { id } });
-
-      // 如果后备方案成功，也进行缓存
-      if (result?.data?.data?.url) {
-        console.log('后备方案成功，缓存结果');
-        await CacheManager.setCachedMusicUrl(id, result, []);
-      }
-
-      return result;
-    } catch (apiError) {
-      console.error('API请求也失败了:', apiError);
-      const endTime = performance.now();
-      console.log(`总耗时: ${(endTime - startTime).toFixed(2)}ms`);
-      return {
-        data: {
-          code: 500,
-          message: '所有解析方式都失败了',
-          data: undefined
-        }
-      };
-    }
+    const endTime = performance.now();
+    console.log(`总耗时: ${(endTime - startTime).toFixed(2)}ms`);
+    return buildFailedResult('所有解析方式都失败了', 500);
   }
 }

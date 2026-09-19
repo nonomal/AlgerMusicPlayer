@@ -13,6 +13,7 @@ import { computed } from 'vue';
 import { useFavoriteStore } from './favorite';
 import { useIntelligenceModeStore } from './intelligenceMode';
 import { usePlayerCoreStore } from './playerCore';
+import { cleanupLegacyPlayHistoryStorage } from './playHistory';
 import { usePlaylistStore } from './playlist';
 import { type SleepTimerInfo, SleepTimerType, useSleepTimerStore } from './sleepTimer';
 
@@ -32,8 +33,18 @@ export const usePlayerStore = defineStore('player', () => {
   const intelligenceMode = useIntelligenceModeStore();
 
   // 使用 storeToRefs 获取响应式引用
-  const { play, isPlay, playMusic, playMusicUrl, musicFull, playbackRate, volume, userPlayIntent } =
-    storeToRefs(playerCore);
+  const {
+    play,
+    isPlay,
+    playMusic,
+    playMusicUrl,
+    musicFull,
+    playbackRate,
+    volume,
+    isMuted,
+    userPlayIntent,
+    isFmPlaying
+  } = storeToRefs(playerCore);
 
   const { playList, playListIndex, playMode, originalPlayList, playListDrawerVisible } =
     storeToRefs(playlist);
@@ -61,7 +72,11 @@ export const usePlayerStore = defineStore('player', () => {
    * 初始化播放状态（从 localStorage 恢复）
    */
   const initializePlayState = async () => {
-    await playerCore.initializePlayState();
+    // 一次性清理 v1 时代的旧 localStorage key，不做数据迁移（详见 playHistory.ts 注释）
+    cleanupLegacyPlayHistoryStorage();
+
+    const { initializePlayState: initPlayState } = await import('@/services/playbackController');
+    await initPlayState();
     await playlist.initializePlaylist();
   };
 
@@ -82,7 +97,9 @@ export const usePlayerStore = defineStore('player', () => {
     musicFull,
     playbackRate,
     volume,
+    isMuted,
     userPlayIntent,
+    isFmPlaying,
 
     // PlayerCore - Computed
     currentSong,
@@ -97,11 +114,9 @@ export const usePlayerStore = defineStore('player', () => {
     getVolume: playerCore.getVolume,
     increaseVolume: playerCore.increaseVolume,
     decreaseVolume: playerCore.decreaseVolume,
-    handlePlayMusic: playerCore.handlePlayMusic,
-    playAudio: playerCore.playAudio,
+    setMuted: playerCore.setMuted,
+    toggleMute: playerCore.toggleMute,
     handlePause: playerCore.handlePause,
-    checkPlaybackState: playerCore.checkPlaybackState,
-    reparseCurrentSong: playerCore.reparseCurrentSong,
 
     // ========== 播放列表管理 (Playlist) ==========
     playList,

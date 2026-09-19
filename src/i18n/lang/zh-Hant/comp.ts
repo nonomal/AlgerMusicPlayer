@@ -1,4 +1,8 @@
 export default {
+  more: '更多',
+  homeListItem: {
+    loading: '載入中...'
+  },
   installApp: {
     description: '安裝應用程式，獲得更好的體驗',
     noPrompt: '不再提示',
@@ -33,11 +37,16 @@ export default {
     title: '發現新版本',
     currentVersion: '目前版本',
     cancel: '暫不更新',
+    checking: '檢查更新中...',
     prepareDownload: '準備下載...',
     downloading: '下載中...',
+    readyToInstall: '更新包已下載完成，可以立即安裝',
     nowUpdate: '立即更新',
     downloadFailed: '下載失敗，請重試或手動下載',
     startFailed: '啟動下載失敗，請重試或手動下載',
+    autoUpdateFailed: '自動更新失敗',
+    openOfficialSite: '前往官網更新',
+    manualFallbackHint: '自動更新失敗後，可前往官網下載安裝最新版本。',
     noDownloadUrl: '未找到適合目前系統的安裝包，請手動下載',
     installConfirmTitle: '安裝更新',
     installConfirmContent: '是否關閉應用程式並安裝更新？',
@@ -98,7 +107,68 @@ export default {
     songlist: '每日推薦清單'
   },
   recommendSonglist: {
-    title: '本週最熱音樂'
+    title: '本週最熱音樂',
+    empty: '暫無推薦歌單'
+  },
+  dailyRecommend: {
+    title: '每日推薦',
+    badge: '推薦',
+    empty: '暫無推薦歌曲',
+    intelligenceHint: '開啟心動模式，發現更多喜歡的音樂'
+  },
+  recommendMV: {
+    title: '推薦MV'
+  },
+  newAlbum: {
+    title: '專輯',
+    empty: '暫無新專輯'
+  },
+  recommendNewMusic: {
+    title: '新歌速遞'
+  },
+  privateContent: {
+    title: '獨家放送'
+  },
+  djProgram: {
+    title: '推薦電台'
+  },
+  homeHero: {
+    dailyRecommend: '每日推薦',
+    songs: '首',
+    playNow: '立即播放',
+    intelligenceMode: '心動模式',
+    intelligenceModeOn: '心動中',
+    intelligenceModeDesc: '開啟智慧推薦播放',
+    intelligenceModeActiveDesc: '根據你的喜好智慧推薦',
+    startIntelligence: '開啟心動',
+    stopIntelligence: '關閉心動',
+    playing: '播放中',
+    toplistDesc: '熱門榜單',
+    mvDesc: '音樂視訊',
+    playlistDesc: '精選播放清單',
+    personalFm: '私人FM',
+    discoverMusic: '發現新音樂',
+    personalFmDesc: '根據你的喜好推薦',
+    recentPlays: '最近播放',
+    viewAll: '查看全部',
+    followedArtists: '關注歌手',
+    newSongs: '首新歌',
+    fromFollowedArtists: '來自你關注的歌手',
+    recommendNewMusic: '推薦新音樂',
+    newSongExpress: '新歌速遞',
+    discoverNewReleases: '發現最新發行的好歌',
+    hotPlaylists: '精選歌單',
+    hotArtists: '熱門歌手',
+    hotArtistsTitle: '熱門藝人',
+    hotArtistsDesc: '當下最受歡迎的歌手',
+    fmTrash: '不喜歡',
+    fmNext: '下一首',
+    quickNav: {
+      myFavorite: '我的收藏',
+      playHistory: '播放歷史',
+      myProfile: '我的主頁',
+      toplist: '排行榜'
+    }
   },
   searchBar: {
     login: '登入',
@@ -113,7 +183,13 @@ export default {
     zoom: '頁面縮放',
     zoom100: '標準縮放100%',
     resetZoom: '點擊重設縮放',
-    zoomDefault: '標準縮放'
+    zoomDefault: '標準縮放',
+    tabPlaylist: '播放清單',
+    tabMv: 'MV',
+    tabCharts: '排行榜',
+    cancelSearch: '取消',
+    intelligenceMode: '心動模式',
+    exitIntelligence: '退出心動模式'
   },
   titleBar: {
     closeTitle: '請選擇關閉方式',
@@ -139,6 +215,10 @@ export default {
     addToPlaylist: '新增至播放清單',
     addToPlaylistSuccess: '新增至播放清單成功',
     songsAlreadyInPlaylist: '歌曲已存在於播放清單中',
+    locateCurrent: '定位當前播放',
+    scrollToTop: '回到頂部',
+    compactLayout: '緊湊佈局',
+    normalLayout: '常規佈局',
     historyRecommend: '歷史日推',
     fetchDatesFailed: '獲取日期列表失敗',
     fetchSongsFailed: '獲取歌曲列表失敗',
@@ -168,6 +248,7 @@ export default {
       albumNamePlaceholder: '專輯名稱',
       addSongButton: '新增歌曲',
       addLinkButton: '新增連結',
+      options: '選項',
       importToStarPlaylist: '匯入到我喜歡的音樂',
       playlistNamePlaceholder: '請輸入播放清單名稱',
       importButton: '開始匯入',
@@ -211,5 +292,41 @@ export default {
   list: '播放清單',
   mv: 'MV',
   home: '首頁',
-  search: '搜尋'
+  search: '搜尋',
+  album: '專輯',
+  localMusic: '本地音樂',
+  pages: {
+    toplist: {
+      desc: '最具權威的音樂榜單，發現當下最熱門的音樂'
+    },
+    mv: {
+      desc: '探索精彩影片內容',
+      loadingMore: '載入更多中...',
+      noMore: '— 已載入全部內容 —',
+      area: {
+        all: '全部',
+        mainland: '內地',
+        hktw: '港台',
+        western: '歐美',
+        japan: '日本',
+        korea: '韓國'
+      }
+    },
+    list: {
+      desc: '發現更多好聽的播放清單',
+      dailyRecommend: '每日推薦'
+    },
+    search: {
+      desc: '探索當下最熱門的搜尋趨勢'
+    },
+    album: {
+      area: {
+        all: '全部',
+        chinese: '華語',
+        western: '歐美',
+        korea: '韓國',
+        japan: '日本'
+      }
+    }
+  }
 };

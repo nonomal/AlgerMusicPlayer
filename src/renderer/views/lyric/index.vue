@@ -1,7 +1,10 @@
 <template>
   <div
     class="lyric-window"
-    :class="[lyricSetting.theme, { lyric_lock: lyricSetting.isLock }]"
+    :class="[
+      lyricSetting.theme,
+      { lyric_lock: lyricSetting.isLock, 'bar-bottom': controlBarAtBottom }
+    ]"
     @mousedown="handleMouseDown"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
@@ -47,6 +50,37 @@
         <!-- <div class="control-button" @click="handleTop">
           <i class="ri-pushpin-line" :class="{ active: lyricSetting.isTop }"></i>
         </div> -->
+        <!-- 翻译开关按钮（仅当歌词有翻译时显示） -->
+        <div
+          v-if="hasTranslation"
+          class="control-button"
+          :title="showTranslation ? '隐藏翻译' : '显示翻译'"
+          @click="lyricSetting.showTranslation = !lyricSetting.showTranslation"
+        >
+          <i class="ri-translate-2" :class="{ active: showTranslation }"></i>
+        </div>
+
+        <!-- 显示模式切换按钮（scroll → single → double → scroll 循环） -->
+        <div
+          class="control-button"
+          :title="
+            displayMode === 'scroll'
+              ? '滚动模式'
+              : displayMode === 'single'
+                ? '单行模式'
+                : '双行模式'
+          "
+          @click="cycleDisplayMode"
+        >
+          <i
+            :class="{
+              'ri-align-justify': displayMode === 'scroll',
+              'ri-subtract-line': displayMode === 'single',
+              'ri-layout-row-line': displayMode === 'double'
+            }"
+          ></i>
+        </div>
+
         <div id="lyric-lock" class="control-button" @click="handleLock">
           <i v-if="lyricSetting.isLock" class="ri-lock-line"></i>
           <i v-else class="ri-lock-unlock-line"></i>
@@ -64,18 +98,20 @@
       :theme="lyricSetting.theme"
       @color-change="handleColorChange"
       @close="handleThemeColorPanelClose"
+      @reset="handleThemeColorReset"
     />
 
     <!-- 歌词显示区域 -->
     <div ref="containerRef" class="lyric-container">
-      <div class="lyric-scroll">
+      <!-- ① 滚动模式（默认） -->
+      <div v-if="displayMode === 'scroll'" class="lyric-scroll">
         <div class="lyric-wrapper" :style="wrapperStyle">
           <template v-if="staticData.lrcArray?.length > 0">
             <div
               v-for="(line, index) in staticData.lrcArray"
               :key="index"
               class="lyric-line"
-              :style="getDynamicLineStyle(line)"
+              :style="getDynamicLineStyle(line, showTranslation)"
               :class="{
                 'lyric-line-current': index === currentIndex,
                 'lyric-line-passed': index < currentIndex,
@@ -83,7 +119,6 @@
               }"
             >
               <div class="lyric-text" :style="{ fontSize: `${fontSize}px` }">
-                <!-- 逐字歌词显示 -->
                 <div
                   v-if="line.hasWordByWord && line.words && line.words.length > 0"
                   class="word-by-word-lyric"
@@ -91,16 +126,16 @@
                   <template v-for="(word, wordIndex) in line.words" :key="wordIndex">
                     <span class="lyric-word" :style="getWordStyle(index, wordIndex, word)">
                       {{ word.text }} </span
-                    ><span class="lyric-word" v-if="word.space">&nbsp;</span></template
-                  >
+                    ><span v-if="word.space" class="lyric-word">&nbsp;</span>
+                  </template>
                 </div>
-                <!-- 普通歌词显示 -->
                 <span v-else class="lyric-text-inner" :style="getLyricStyle(index)">
                   {{ line.text || '' }}
                 </span>
               </div>
+              <!-- ★ 翻译行：加入 showTranslation 控制 -->
               <div
-                v-if="line.trText"
+                v-if="showTranslation && line.trText"
                 class="lyric-translation"
                 :style="{ fontSize: `${fontSize * 0.6}px` }"
               >
@@ -110,6 +145,81 @@
           </template>
           <div v-else class="lyric-empty">无歌词</div>
         </div>
+      </div>
+
+      <!-- ② 单行模式 -->
+      <div v-else-if="displayMode === 'single'" class="lyric-single-mode">
+        <template v-if="staticData.lrcArray?.length > 0">
+          <div class="lyric-line lyric-line-current">
+            <div class="lyric-text" :style="{ fontSize: `${fontSize}px` }">
+              <div
+                v-if="
+                  staticData.lrcArray[currentIndex] != null &&
+                  staticData.lrcArray[currentIndex].hasWordByWord &&
+                  (staticData.lrcArray[currentIndex].words?.length ?? 0) > 0
+                "
+                class="word-by-word-lyric"
+              >
+                <template
+                  v-for="(word, wordIndex) in staticData.lrcArray[currentIndex]!.words"
+                  :key="wordIndex"
+                >
+                  <span class="lyric-word" :style="getWordStyle(currentIndex, wordIndex, word)">
+                    {{ word.text }} </span
+                  ><span v-if="word.space" class="lyric-word">&nbsp;</span>
+                </template>
+              </div>
+              <span v-else class="lyric-text-inner" :style="getLyricStyle(currentIndex)">
+                {{ staticData.lrcArray[currentIndex]?.text || '' }}
+              </span>
+            </div>
+            <div
+              v-if="showTranslation && staticData.lrcArray[currentIndex]?.trText"
+              class="lyric-translation"
+              :style="{ fontSize: `${fontSize * 0.6}px` }"
+            >
+              {{ staticData.lrcArray[currentIndex]?.trText }}
+            </div>
+          </div>
+        </template>
+        <div v-else class="lyric-empty">无歌词</div>
+      </div>
+
+      <!-- ③ 双行模式（固定分组，每 2 行为一组） -->
+      <div v-else class="lyric-double-mode" :class="{ 'group-fade': isGroupTransitioning }">
+        <template v-if="staticData.lrcArray?.length > 0">
+          <!-- currentGroupLines 最多 2 条，最后一组只有 1 行时自动只显示 1 行 -->
+          <div
+            v-for="line in currentGroupLines"
+            :key="line.index"
+            class="lyric-line"
+            :class="{ 'lyric-line-current': line.index === currentIndex }"
+          >
+            <div class="lyric-text" :style="{ fontSize: `${fontSize}px` }">
+              <div
+                v-if="line.hasWordByWord && line.words && line.words.length > 0"
+                class="word-by-word-lyric"
+              >
+                <template v-for="(word, wordIndex) in line.words" :key="wordIndex">
+                  <span class="lyric-word" :style="getWordStyle(line.index, wordIndex, word)">
+                    {{ word.text }} </span
+                  ><span v-if="word.space" class="lyric-word">&nbsp;</span>
+                </template>
+              </div>
+              <span v-else class="lyric-text-inner" :style="getLyricStyle(line.index)">
+                {{ line.text || '' }}
+              </span>
+            </div>
+            <div
+              v-if="showTranslation && line.trText"
+              class="lyric-translation"
+              :style="{ fontSize: `${fontSize * 0.6}px` }"
+            >
+              {{ line.trText }}
+            </div>
+          </div>
+        </template>
+        <div v-else class="lyric-empty">无歌词</div>
       </div>
     </div>
   </div>
@@ -188,7 +298,11 @@ const loadLyricSettings = () => {
         isTop: parsed.isTop ?? false,
         theme: parsed.theme === 'light' || parsed.theme === 'dark' ? parsed.theme : 'dark',
         isLock: parsed.isLock ?? false,
-        highlightColor: validatedHighlightColor
+        highlightColor: validatedHighlightColor,
+        showTranslation: parsed.showTranslation ?? true,
+        displayMode: (['scroll', 'single', 'double'].includes(parsed.displayMode)
+          ? parsed.displayMode
+          : 'scroll') as 'scroll' | 'single' | 'double'
       };
     }
   } catch (error) {
@@ -200,13 +314,39 @@ const loadLyricSettings = () => {
     isTop: false,
     theme: 'dark' as 'light' | 'dark',
     isLock: false,
-    highlightColor: undefined as string | undefined
+    highlightColor: undefined as string | undefined,
+    showTranslation: true,
+    displayMode: 'scroll' as 'scroll' | 'single' | 'double'
   };
 };
 
 const lyricSetting = ref(loadLyricSettings());
 
+// 是否有翻译（控制翻译按钮是否显示）
+const hasTranslation = computed(() => staticData.value.lrcArray.some((line) => line.trText));
+
+// 双行模式：当前组索引（每 2 行为一组）
+const currentGroupIndex = computed(() => Math.floor(currentIndex.value / 2));
+
+// 双行模式：当前组的行数据（带原始索引）
+// 注：slice 在越界时自动截断，最后一组只有 1 行时安全返回长度为 1 的数组
+const currentGroupLines = computed(() => {
+  const start = currentGroupIndex.value * 2;
+  return staticData.value.lrcArray
+    .slice(start, start + 2)
+    .map((line, i) => ({ ...line, index: start + i }));
+});
+
+// 双行模式过渡动画状态
+const isGroupTransitioning = ref(false);
+
+// displayMode 和 showTranslation 的快捷 computed，template 中更简洁
+const displayMode = computed(() => lyricSetting.value.displayMode);
+const showTranslation = computed(() => lyricSetting.value.showTranslation);
+
 let hideControlsTimer: number | null = null;
+let removeMousePresenceListener: (() => void) | null = null;
+let removeReceiveLyricListener: (() => void) | null = null;
 
 const isHovering = ref(false);
 
@@ -230,8 +370,54 @@ const clearHideTimer = () => {
   }
 };
 
+// 锁定态下锁图标空闲自动淡出（#606）：
+// 光标在窗口内且无活动 2.5s 后隐藏并恢复点击穿透；再次移动鼠标即重新唤出
+const LOCKED_CONTROLS_HIDE_DELAY = 2500;
+
+const scheduleLockedControlsHide = () => {
+  clearHideTimer();
+  hideControlsTimer = window.setTimeout(() => {
+    hideControlsTimer = null;
+    if (lyricSetting.value.isLock) {
+      isHovering.value = false;
+      windowData.electron.ipcRenderer.send('set-ignore-mouse', true);
+    }
+  }, LOCKED_CONTROLS_HIDE_DELAY);
+};
+
+const showLockedControls = () => {
+  if (!lyricSetting.value.isLock) return;
+  if (!isHovering.value) {
+    isHovering.value = true;
+    windowData.electron.ipcRenderer.send('set-ignore-mouse', false);
+  }
+  scheduleLockedControlsHide();
+};
+
+// 点击穿透开启时主进程以 forward:true 转发 mousemove，可用于重新唤出锁图标
+const handleLockedMouseMove = () => {
+  if (!lyricSetting.value.isLock) return;
+  showLockedControls();
+};
+
+// 控制栏位置：歌词窗口贴近屏幕顶部时，功能栏翻转到歌词下方，
+// 避免锁定等功能键被挤在屏幕最上沿难以点击（#719）
+const controlBarAtBottom = ref(false);
+/** 窗口顶边距屏幕可用区顶部小于该值时，认为歌词位于桌面顶部 */
+const CONTROL_BAR_FLIP_THRESHOLD = 90;
+
+const updateControlBarPosition = () => {
+  try {
+    const availTop = (window.screen as any).availTop ?? 0;
+    controlBarAtBottom.value = window.screenY - availTop < CONTROL_BAR_FLIP_THRESHOLD;
+  } catch (error) {
+    console.error('计算控制栏位置失败:', error);
+  }
+};
+
 // 处理鼠标进入窗口
 const handleMouseEnter = () => {
+  updateControlBarPosition();
   if (lyricSetting.value.isLock) {
     isHovering.value = true;
     windowData.electron.ipcRenderer.send('set-ignore-mouse', true);
@@ -261,9 +447,13 @@ const handleMouseLeave = () => {
 watch(
   () => lyricSetting.value.isLock,
   (newLock: boolean) => {
+    clearHideTimer();
     if (newLock) {
       isHovering.value = false;
+      // 锁定时自动关闭主题色面板
+      showThemeColorPanel.value = false;
     }
+    windowData.electron.ipcRenderer.send('set-lyric-lock-state', newLock);
   }
 );
 
@@ -272,14 +462,24 @@ onMounted(() => {
   if (lyricSetting.value.isLock) {
     isHovering.value = false;
   }
+  updateControlBarPosition();
+  document.addEventListener('mousemove', handleLockedMouseMove);
+  window.addEventListener('resize', updateControlBarPosition);
 });
 
 onUnmounted(() => {
   clearHideTimer();
+  document.removeEventListener('mousemove', handleLockedMouseMove);
+  window.removeEventListener('resize', updateControlBarPosition);
 });
 
 // 计算歌词滚动位置
 const wrapperStyle = computed(() => {
+  // 非 scroll 模式不渲染 .lyric-wrapper，提前返回空对象避免无效计算
+  if (displayMode.value !== 'scroll') {
+    return {};
+  }
+
   if (!containerHeight.value) {
     return {
       transform: 'translateY(0)',
@@ -293,7 +493,8 @@ const wrapperStyle = computed(() => {
   // 计算每行的实际高度
   const getLineHeight = (line: { text: string; trText: string }) => {
     const baseHeight = lineHeight.value;
-    if (line.trText) {
+    if (showTranslation.value && line.trText) {
+      // 新增 showTranslation.value 判断
       const extraHeight = Math.round(fontSize.value * 0.6 * 1.4);
       return baseHeight + extraHeight;
     }
@@ -340,22 +541,13 @@ const wrapperStyle = computed(() => {
 });
 
 // 新增：根据是否有翻译文本动态计算每行的样式
-const getDynamicLineStyle = (line: { text: string; trText: string }) => {
-  // 默认行高
+const getDynamicLineStyle = (line: { text: string; trText: string }, withTranslation = true) => {
   const defaultHeight = lineHeight.value;
-
-  // 如果有翻译文本，增加额外高度
-  if (line.trText) {
-    // 计算翻译文本的额外高度 (字体大小的0.6倍 * 行高比例1.4)
+  if (withTranslation && line.trText) {
     const extraHeight = Math.round(fontSize.value * 0.6 * 1.4);
-    return {
-      height: `${defaultHeight + extraHeight}px`
-    };
+    return { height: `${defaultHeight + extraHeight}px` };
   }
-
-  return {
-    height: `${defaultHeight}px`
-  };
+  return { height: `${defaultHeight}px` };
 };
 
 // 更新容器高度和行高
@@ -422,13 +614,19 @@ onMounted(() => {
 // 实际播放时间
 const actualTime = ref(0);
 
-// 计算当前行的进度
+// 计算当前行的进度（从本地 lrcTimeArray 取时间，避免依赖 IPC 传入的 startCurrentTime/nextTime）
+// 注意：lrcTimeArray 单位为毫秒（来自 yrcParser），actualTime 单位为秒，需要 * 1000 对齐
 const currentProgress = computed(() => {
-  const { startCurrentTime, nextTime } = dynamicData.value;
-  if (!startCurrentTime || !nextTime) return 0;
+  const times = staticData.value.lrcTimeArray;
+  const idx = currentIndex.value;
+  const startTimeMs = times[idx];
+  const endTimeMs = times[idx + 1];
+  // 使用严格判断，避免 startTimeMs=0 时被误判为无效
+  if (startTimeMs === undefined || endTimeMs === undefined || endTimeMs <= startTimeMs) return 0;
 
-  const duration = nextTime - startCurrentTime;
-  const elapsed = actualTime.value - startCurrentTime;
+  const currentTimeMs = actualTime.value * 1000; // seconds → ms，与 lrcTimeArray 单位对齐
+  const elapsed = currentTimeMs - startTimeMs;
+  const duration = endTimeMs - startTimeMs;
   return Math.min(Math.max(elapsed / duration, 0), 1);
 });
 
@@ -631,8 +829,8 @@ onMounted(() => {
   updateContainerHeight();
   window.addEventListener('resize', updateContainerHeight);
 
-  // 监听歌词数据
-  windowData.electron.ipcRenderer.on('receive-lyric', (_, data) => {
+  // 监听歌词数据（保存移除函数，卸载时解绑，避免窗口复用/HMR 时监听器叠加）
+  const disposeReceiveLyric = windowData.electron.ipcRenderer.on('receive-lyric', (_, data) => {
     try {
       const parsedData = JSON.parse(data);
       handleDataUpdate(parsedData);
@@ -640,10 +838,45 @@ onMounted(() => {
       console.error('Error parsing lyric data:', error);
     }
   });
+  if (typeof disposeReceiveLyric === 'function') {
+    removeReceiveLyricListener = disposeReceiveLyric;
+  }
+
+  // 通知主窗口歌词窗口已就绪，请求发送完整歌词数据
+  windowData.electron.ipcRenderer.send('lyric-ready');
+
+  removeMousePresenceListener = window.ipcRenderer.on(
+    'lyric-mouse-presence',
+    (isInside: boolean) => {
+      if (lyricSetting.value.isLock) {
+        if (isInside) {
+          // 进入窗口：显示锁图标并启动空闲淡出定时器（#606）
+          showLockedControls();
+        } else {
+          // 离开窗口：立即隐藏并恢复点击穿透
+          clearHideTimer();
+          isHovering.value = false;
+          windowData.electron.ipcRenderer.send('set-ignore-mouse', true);
+        }
+      } else {
+        isHovering.value = isInside;
+      }
+    }
+  );
+
+  windowData.electron.ipcRenderer.send('set-lyric-lock-state', lyricSetting.value.isLock);
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateContainerHeight);
+  if (removeMousePresenceListener) {
+    removeMousePresenceListener();
+    removeMousePresenceListener = null;
+  }
+  if (removeReceiveLyricListener) {
+    removeReceiveLyricListener();
+    removeReceiveLyricListener = null;
+  }
 });
 
 const checkTheme = () => {
@@ -688,7 +921,13 @@ const handleThemeColorPanelClose = () => {
   showThemeColorPanel.value = false;
 };
 
-// 导出重置函数以供将来使用
+// 面板"恢复默认"：关闭自定义主题色并收起面板（#591）
+const handleThemeColorReset = () => {
+  resetThemeColor();
+  showThemeColorPanel.value = false;
+};
+
+// 重置主题色到默认（主题色面板"恢复默认"按钮调用）
 const resetThemeColor = () => {
   // 重置到默认颜色
   const defaultColor = getCurrentLyricThemeColor(lyricSetting.value.theme);
@@ -802,6 +1041,12 @@ const handleClose = () => {
   windowData.electron.ipcRenderer.send('close-lyric');
 };
 
+const cycleDisplayMode = () => {
+  const modes: Array<'scroll' | 'single' | 'double'> = ['scroll', 'single', 'double'];
+  const current = modes.indexOf(lyricSetting.value.displayMode);
+  lyricSetting.value.displayMode = modes[(current + 1) % modes.length];
+};
+
 // 安全保存歌词设置
 const saveLyricSettings = (settings: typeof lyricSetting.value) => {
   try {
@@ -830,6 +1075,20 @@ watch(
     }
   }
 );
+
+// 双行模式：分组切换时触发淡出淡入过渡
+// timer 类型必须为 ReturnType<typeof setTimeout> | null，不能用 number
+let groupFadeTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(currentGroupIndex, () => {
+  if (displayMode.value !== 'double') return;
+  if (groupFadeTimer !== null) clearTimeout(groupFadeTimer);
+  isGroupTransitioning.value = true;
+  groupFadeTimer = setTimeout(() => {
+    isGroupTransitioning.value = false;
+    groupFadeTimer = null;
+  }, 300);
+});
 
 // 添加拖动相关变量
 const isDragging = ref(false);
@@ -876,6 +1135,8 @@ const handleMouseDown = (e: MouseEvent) => {
       // 发送移动事件到主进程
       windowData.electron.ipcRenderer.send('lyric-drag-move', { deltaX, deltaY });
       startPosition.value = { x: e.screenX, y: e.screenY };
+      // 拖动过程中实时判断是否需要把控制栏翻到歌词下方（#719）
+      updateControlBarPosition();
     }
   };
 
@@ -885,6 +1146,7 @@ const handleMouseDown = (e: MouseEvent) => {
 
     // 发送拖动结束信号到主进程
     windowData.electron.ipcRenderer.send('lyric-drag-end');
+    updateControlBarPosition();
 
     // 移除事件监听
     document.removeEventListener('mousemove', handleMouseMove);
@@ -899,6 +1161,10 @@ const handleMouseDown = (e: MouseEvent) => {
 // 组件卸载时清理
 onUnmounted(() => {
   isDragging.value = false;
+  if (groupFadeTimer !== null) {
+    clearTimeout(groupFadeTimer);
+    groupFadeTimer = null;
+  }
 });
 
 onMounted(() => {
@@ -1054,6 +1320,25 @@ body,
   }
 }
 
+/* 歌词窗口贴近屏幕顶部时，功能栏整体翻转到歌词下方（#719） */
+.lyric-window.bar-bottom {
+  .control-bar {
+    top: auto;
+    bottom: 10px;
+    align-items: end;
+
+    .play-controls {
+      top: auto;
+      bottom: 0;
+    }
+  }
+
+  :deep(.theme-color-panel) {
+    top: auto;
+    bottom: 50px;
+  }
+}
+
 .control-buttons {
   display: flex;
   gap: 16px;
@@ -1102,6 +1387,50 @@ body,
   bottom: 0;
   overflow: hidden;
   z-index: 100;
+}
+
+// 单行模式容器：垂直居中，单行展示
+.lyric-single-mode {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+
+  .lyric-line {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+// 双行模式容器
+.lyric-double-mode {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  // 分组切换淡出淡入
+  transition: opacity 0.15s ease;
+
+  &.group-fade {
+    opacity: 0;
+  }
+
+  .lyric-line {
+    width: 100%;
+    text-align: center;
+    // 同组非当前行：稍微暗化
+    opacity: 0.55;
+    transition: opacity 0.25s ease;
+
+    &.lyric-line-current {
+      opacity: 1;
+      transform: scale(1.03);
+    }
+  }
 }
 
 .lyric-scroll {
@@ -1268,6 +1597,12 @@ body {
     top: 0;
     right: 72px;
     background: var(--control-bg);
+  }
+
+  /* 控制栏翻转到下方时，锁定按钮同步贴到控制栏底部（#719） */
+  &.bar-bottom #lyric-lock {
+    top: auto;
+    bottom: 0;
   }
 }
 </style>

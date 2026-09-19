@@ -2,16 +2,59 @@ import { cloneDeep } from 'lodash';
 import { createDiscreteApi } from 'naive-ui';
 
 import i18n from '@/../i18n/renderer';
-import { getBilibiliAudioUrl } from '@/api/bilibili';
 import { getMusicLrc, getMusicUrl, getParsingMusicUrl } from '@/api/music';
 import { playbackRequestManager } from '@/services/playbackRequestManager';
 import { SongSourceConfigManager } from '@/services/SongSourceConfigManager';
 import type { ILyric, ILyricText, IWordData, SongResult } from '@/types/music';
-import { getImgUrl } from '@/utils';
-import { getImageLinearBackground } from '@/utils/linearColor';
+import { isElectron } from '@/utils';
 import { parseLyrics as parseYrcLyrics } from '@/utils/yrcParser';
 
 const { message } = createDiscreteApi(['message']);
+
+type DiskCacheResolveResult = {
+  url?: string;
+  cached?: boolean;
+  queued?: boolean;
+};
+
+const getSongArtistText = (songData: SongResult): string => {
+  if (songData?.ar?.length) {
+    return songData.ar.map((artist) => artist.name).join(' / ');
+  }
+
+  if (songData?.song?.artists?.length) {
+    return songData.song.artists.map((artist) => artist.name).join(' / ');
+  }
+
+  return '';
+};
+
+const resolveCachedPlaybackUrl = async (
+  url: string | null | undefined,
+  songData: SongResult
+): Promise<string | null | undefined> => {
+  if (!url || !isElectron || !/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  try {
+    const result = (await window.electron.ipcRenderer.invoke('resolve-cached-music-url', {
+      songId: Number(songData.id),
+      source: songData.source,
+      url,
+      title: songData.name,
+      artist: getSongArtistText(songData)
+    })) as DiskCacheResolveResult;
+
+    if (result?.url) {
+      return result.url;
+    }
+  } catch (error) {
+    console.warn('解析缓存播放地址失败，回退到在线地址:', error);
+  }
+
+  return url;
+};
 
 /**
  * 获取歌曲播放URL（独立函数）
@@ -36,29 +79,8 @@ export const getSongUrl = async (
     }
 
     if (songData.playMusicUrl) {
-      return songData.playMusicUrl;
-    }
-
-    if (songData.source === 'bilibili' && songData.bilibiliData) {
-      console.log('加载B站音频URL');
-      if (!songData.playMusicUrl && songData.bilibiliData.bvid && songData.bilibiliData.cid) {
-        try {
-          songData.playMusicUrl = await getBilibiliAudioUrl(
-            songData.bilibiliData.bvid,
-            songData.bilibiliData.cid
-          );
-          // 验证请求
-          if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
-            console.log(`[getSongUrl] 获取B站URL后请求已失效: ${requestId}`);
-            throw new Error('Request cancelled');
-          }
-          return songData.playMusicUrl;
-        } catch (error) {
-          console.error('重启后获取B站音频URL失败:', error);
-          return '';
-        }
-      }
-      return songData.playMusicUrl || '';
+      if (isDownloaded) return songData.playMusicUrl;
+      return await resolveCachedPlaybackUrl(songData.playMusicUrl, songData);
     }
 
     // ==================== 自定义API最优先 ====================
@@ -93,7 +115,7 @@ export const getSongUrl = async (
         ) {
           console.log('自定义API解析成功！');
           if (isDownloaded) return customResult.data.data as any;
-          return customResult.data.data.url;
+          return await resolveCachedPlaybackUrl(customResult.data.data.url, songData);
         } else {
           console.log('自定义API解析失败，将使用默认降级流程...');
           message.warning(i18n.global.t('player.reparse.customApiFailed'));
@@ -108,7 +130,7 @@ export const getSongUrl = async (
     }
 
     // 如果有自定义音源设置，直接使用getParsingMusicUrl获取URL
-    if (songConfig && songData.source !== 'bilibili') {
+    if (songConfig) {
       try {
         console.log(`使用自定义音源解析歌曲 ID: ${id}`);
         const res = await getParsingMusicUrl(numericId, cloneDeep(songData));
@@ -121,7 +143,7 @@ export const getSongUrl = async (
         }
 
         if (res && res.data && res.data.data && res.data.data.url) {
-          return res.data.data.url;
+          return await resolveCachedPlaybackUrl(res.data.data.url, songData);
         }
         console.warn('自定义音源解析失败，使用默认音源');
       } catch (error) {
@@ -156,12 +178,13 @@ export const getSongUrl = async (
           throw new Error('Request cancelled');
         }
         if (isDownloaded) return res?.data?.data as any;
-        return res?.data?.data?.url || null;
+        const parsedUrl = res?.data?.data?.url || null;
+        return await resolveCachedPlaybackUrl(parsedUrl, songData);
       }
 
       console.log('官方API解析成功！');
       if (isDownloaded) return songDetail as any;
-      return songDetail.url;
+      return await resolveCachedPlaybackUrl(songDetail.url, songData);
     }
 
     console.log('官方API返回数据结构异常，进入内置备用解析...');
@@ -172,7 +195,8 @@ export const getSongUrl = async (
       throw new Error('Request cancelled');
     }
     if (isDownloaded) return res?.data?.data as any;
-    return res?.data?.data?.url || null;
+    const parsedUrl = res?.data?.data?.url || null;
+    return await resolveCachedPlaybackUrl(parsedUrl, songData);
   } catch (error) {
     if ((error as Error).message === 'Request cancelled') {
       throw error;
@@ -180,7 +204,8 @@ export const getSongUrl = async (
     console.error('官方API请求失败，进入内置备用解析流程:', error);
     const res = await getParsingMusicUrl(numericId, cloneDeep(songData));
     if (isDownloaded) return res?.data?.data as any;
-    return res?.data?.data?.url || null;
+    const parsedUrl = res?.data?.data?.url || null;
+    return await resolveCachedPlaybackUrl(parsedUrl, songData);
   }
 };
 
@@ -239,18 +264,30 @@ const parseLyrics = (lyricsString: string): { lyrics: ILyricText[]; times: numbe
  * 加载歌词（独立函数）
  */
 export const loadLrc = async (id: string | number): Promise<ILyric> => {
-  if (typeof id === 'string' && id.includes('--')) {
-    console.log('B站音频，无需加载歌词');
-    return {
-      lrcTimeArray: [],
-      lrcArray: [],
-      hasWordByWord: false
-    };
-  }
-
   try {
     const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
-    const { data } = await getMusicLrc(numericId);
+    let lyricData: any;
+
+    if (isElectron) {
+      try {
+        lyricData = await window.electron.ipcRenderer.invoke('get-cached-lyric', numericId);
+      } catch (error) {
+        console.warn('读取磁盘歌词缓存失败:', error);
+      }
+    }
+
+    if (!lyricData) {
+      const { data } = await getMusicLrc(numericId);
+      lyricData = data;
+
+      if (isElectron && lyricData) {
+        void window.electron.ipcRenderer
+          .invoke('cache-lyric', numericId, lyricData)
+          .catch((error) => console.warn('写入磁盘歌词缓存失败:', error));
+      }
+    }
+
+    const data = lyricData ?? {};
     const { lyrics, times } = parseLyrics(data?.yrc?.lyric || data?.lrc?.lyric);
 
     // 检查是否有逐字歌词
@@ -334,11 +371,9 @@ export const useLyrics = () => {
 };
 
 /**
- * 获取歌曲详情
+ * 获取歌曲详情（优化版 - 只获取URL，背景色在播放后异步获取）
  */
 export const useSongDetail = () => {
-  const { getSongUrl } = useSongUrl();
-
   const getSongDetail = async (playMusic: SongResult, requestId?: string) => {
     // 验证请求
     if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
@@ -346,33 +381,12 @@ export const useSongDetail = () => {
       throw new Error('Request cancelled');
     }
 
-    if (playMusic.source === 'bilibili') {
-      try {
-        if (!playMusic.playMusicUrl && playMusic.bilibiliData) {
-          playMusic.playMusicUrl = await getBilibiliAudioUrl(
-            playMusic.bilibiliData.bvid,
-            playMusic.bilibiliData.cid
-          );
-        }
-
-        // 验证请求
-        if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
-          console.log(`[getSongDetail] B站URL获取后请求已失效: ${requestId}`);
-          throw new Error('Request cancelled');
-        }
-
-        playMusic.playLoading = false;
-        return { ...playMusic } as SongResult;
-      } catch (error) {
-        console.error('获取B站音频详情失败:', error);
-        playMusic.playLoading = false;
-        throw error;
-      }
-    }
-
     if (playMusic.expiredAt && playMusic.expiredAt < Date.now()) {
-      console.info(`歌曲已过期，重新获取: ${playMusic.name}`);
-      playMusic.playMusicUrl = undefined;
+      // 本地音乐（local:// 协议）不会过期，跳过清除
+      if (!playMusic.playMusicUrl?.startsWith('local://')) {
+        console.info(`歌曲已过期，重新获取: ${playMusic.name}`);
+        playMusic.playMusicUrl = undefined;
+      }
     }
 
     try {
@@ -388,19 +402,10 @@ export const useSongDetail = () => {
       playMusic.createdAt = Date.now();
       // 半小时后过期
       playMusic.expiredAt = playMusic.createdAt + 1800000;
-      const { backgroundColor, primaryColor } =
-        playMusic.backgroundColor && playMusic.primaryColor
-          ? playMusic
-          : await getImageLinearBackground(getImgUrl(playMusic?.picUrl, '30y30'));
-
-      // 验证请求
-      if (requestId && !playbackRequestManager.isRequestValid(requestId)) {
-        console.log(`[getSongDetail] 背景色获取后请求已失效: ${requestId}`);
-        throw new Error('Request cancelled');
-      }
 
       playMusic.playLoading = false;
-      return { ...playMusic, playMusicUrl, backgroundColor, primaryColor } as SongResult;
+      // 返回歌曲信息，背景色和歌词将在播放后异步加载
+      return { ...playMusic, playMusicUrl } as SongResult;
     } catch (error) {
       if ((error as Error).message === 'Request cancelled') {
         throw error;

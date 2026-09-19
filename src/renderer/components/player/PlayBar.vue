@@ -17,6 +17,7 @@
           ? '#ffffff'
           : '#000000'
     }"
+    @click="handleBarClick"
   >
     <div class="music-time custom-slider">
       <n-slider
@@ -32,7 +33,8 @@
         @dragend="handleSliderDragEnd"
       ></n-slider>
     </div>
-    <div class="play-bar-img-wrapper" @click="setMusicFull">
+    <!-- 播放条空白区域点击进入详情页，由根节点的 handleBarClick 统一处理（#751） -->
+    <div class="play-bar-img-wrapper">
       <n-image
         :src="getImgUrl(playMusic?.picUrl, '100y100')"
         class="play-bar-img"
@@ -75,7 +77,7 @@
             v-for="(artists, artistsindex) in artistList"
             :key="artistsindex"
             class="cursor-pointer hover:text-green-500"
-            @click="handleArtistClick(artists.id)"
+            @click.stop="handleArtistClick(artists.id)"
           >
             {{ artists.name }}{{ artistsindex < artistList.length - 1 ? ' / ' : '' }}
           </span>
@@ -99,8 +101,16 @@
           <i class="iconfont" :class="getVolumeIcon"></i>
         </div>
         <div class="volume-slider">
-          <div class="volume-percentage">{{ Math.round(volumeSlider) }}%</div>
-          <n-slider v-model:value="volumeSlider" :step="0.01" :tooltip="false" vertical></n-slider>
+          <div class="volume-percentage" :class="{ 'volume-percentage-disabled': isMuted }">
+            {{ Math.round(volumeSlider) }}%
+          </div>
+          <n-slider
+            v-model:value="volumeSlider"
+            :step="0.01"
+            :tooltip="false"
+            :disabled="isMuted"
+            vertical
+          ></n-slider>
         </div>
       </div>
       <n-tooltip v-if="!isMobile" trigger="hover" :z-index="9999999">
@@ -143,6 +153,16 @@
         </template>
         {{ t('player.playBar.reparse') }}
       </n-tooltip>
+      <n-tooltip v-if="playMusic?.id && isElectron" trigger="hover" :z-index="9999999">
+        <template #trigger>
+          <i
+            class="iconfont ri-download-line"
+            :class="{ 'disabled-icon': isDownloading }"
+            @click="playMusic?.id && handleDownload()"
+          />
+        </template>
+        {{ isDownloading ? t('songItem.message.downloading') : t('player.playBar.download') }}
+      </n-tooltip>
 
       <!-- 高级控制菜单按钮（整合了 EQ、定时关闭、播放速度） -->
       <advanced-controls-popover />
@@ -164,7 +184,6 @@
 
 <script lang="ts" setup>
 import { useThrottleFn } from '@vueuse/core';
-import { useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -182,18 +201,48 @@ import {
   textColors
 } from '@/hooks/MusicHook';
 import { useArtist } from '@/hooks/useArtist';
+import { useDownload } from '@/hooks/useDownload';
+import { useFavorite } from '@/hooks/useFavorite';
+import { usePlaybackControl } from '@/hooks/usePlaybackControl';
 import { usePlayMode } from '@/hooks/usePlayMode';
+import { useVolumeControl } from '@/hooks/useVolumeControl';
 import { audioService } from '@/services/audioService';
-import { isBilibiliIdMatch, usePlayerStore } from '@/store/modules/player';
+import { usePlayerStore } from '@/store/modules/player';
 import { useSettingsStore } from '@/store/modules/settings';
 import { getImgUrl, isElectron, isMobile, secondToMinute, setAnimationClass } from '@/utils';
 
 const playerStore = usePlayerStore();
 const settingsStore = useSettingsStore();
 const { t } = useI18n();
-const message = useMessage();
-// 是否播放
-const play = computed(() => playerStore.isPlay);
+
+// 播放控制
+const { isPlaying: play, playMusicEvent, handleNext, handlePrev } = usePlaybackControl();
+
+// 音量控制
+const {
+  isMuted,
+  volumeSlider,
+  volumeIcon: getVolumeIcon,
+  mute,
+  handleVolumeWheel
+} = useVolumeControl();
+
+// 收藏
+const { isFavorite, toggleFavorite } = useFavorite();
+
+// 下载
+const { downloadMusic, isDownloading } = useDownload();
+const handleDownload = () => {
+  if (!playMusic.value || isDownloading.value) return;
+  downloadMusic(playMusic.value);
+};
+
+// 播放模式
+const { playMode, playModeIcon, playModeText, togglePlayMode } = usePlayMode();
+
+// 播放速度控制
+const { playbackRate } = storeToRefs(playerStore);
+
 // 背景颜色
 const background = ref('#000');
 
@@ -211,114 +260,40 @@ watch(
 const throttledSeek = useThrottleFn((value: number) => {
   audioService.seek(value);
   nowTime.value = value;
-}, 50); // 50ms 的节流延迟
+}, 50);
 
-// 拖动时的临时值，避免频繁更新 nowTime 触发重渲染
+// 拖动时的临时值
 const dragValue = ref(0);
-
-// 为滑块拖动添加状态跟踪
 const isDragging = ref(false);
 
-// 修改 timeSlider 计算属性
 const timeSlider = computed({
   get: () => (isDragging.value ? dragValue.value : nowTime.value),
   set: (value) => {
     if (isDragging.value) {
-      // 拖动中只更新临时值，不触发 nowTime 更新和 seek 操作
       dragValue.value = value;
       return;
     }
-
-    // 点击操作 (非拖动)，可以直接 seek
     throttledSeek(value);
   }
 });
 
-// 添加滑块拖动开始和结束事件处理
 const handleSliderDragStart = () => {
   isDragging.value = true;
-  // 初始化拖动值为当前时间
   dragValue.value = nowTime.value;
 };
 
 const handleSliderDragEnd = () => {
   isDragging.value = false;
-
-  // 直接应用最终的拖动值
   audioService.seek(dragValue.value);
   nowTime.value = dragValue.value;
 };
 
-// 格式化提示文本，根据拖动状态显示不同的时间
 const formatTooltip = (value: number) => {
   return `${secondToMinute(value)} / ${secondToMinute(allTime.value)}`;
 };
 
-// 音量条 - 使用 playerStore 的统一音量管理
-const getVolumeIcon = computed(() => {
-  // 0 静音 ri-volume-mute-line 0.5 ri-volume-down-line 1 ri-volume-up-line
-  if (playerStore.volume === 0) {
-    return 'ri-volume-mute-line';
-  }
-  if (playerStore.volume <= 0.5) {
-    return 'ri-volume-down-line';
-  }
-  return 'ri-volume-up-line';
-});
-
-const volumeSlider = computed({
-  get: () => playerStore.volume * 100,
-  set: (value) => {
-    playerStore.setVolume(value / 100);
-  }
-});
-
-// 静音
-const mute = () => {
-  if (volumeSlider.value === 0) {
-    volumeSlider.value = 30;
-  } else {
-    volumeSlider.value = 0;
-  }
-};
-
-// 鼠标滚轮调整音量
-const handleVolumeWheel = (e: WheelEvent) => {
-  // 向上滚动增加音量，向下滚动减少音量
-  const delta = e.deltaY < 0 ? 5 : -5;
-  const newValue = Math.min(Math.max(volumeSlider.value + delta, 0), 100);
-  volumeSlider.value = newValue;
-};
-
-// 播放模式
-const { playMode, playModeIcon, playModeText, togglePlayMode } = usePlayMode();
-
-// 播放速度控制
-const { playbackRate } = storeToRefs(playerStore);
-
-function handleNext() {
-  playerStore.nextPlay();
-}
-
-function handlePrev() {
-  playerStore.prevPlay();
-}
-
 const MusicFullRef = ref<any>(null);
 const showSliderTooltip = ref(false);
-
-// 播放暂停按钮事件
-const playMusicEvent = async () => {
-  try {
-    const result = await playerStore.setPlay({ ...playMusic.value });
-    if (result) {
-      playerStore.setPlayMusic(true);
-    }
-  } catch (error) {
-    console.error('重新获取播放链接失败:', error);
-    message.error(t('player.playFailed'));
-  }
-};
 
 const musicFullVisible = computed({
   get: () => playerStore.musicFull,
@@ -327,7 +302,6 @@ const musicFullVisible = computed({
   }
 });
 
-// 设置musicFull
 const setMusicFull = () => {
   musicFullVisible.value = !musicFullVisible.value;
   playerStore.setMusicFull(musicFullVisible.value);
@@ -336,35 +310,23 @@ const setMusicFull = () => {
   }
 };
 
-const isFavorite = computed(() => {
-  if (!playMusic || !playMusic.value) return false;
-  // 对于B站视频，使用ID匹配函数
-  if (playMusic.value.source === 'bilibili' && playMusic.value.bilibiliData?.bvid) {
-    return playerStore.favoriteList.some((id) => isBilibiliIdMatch(id, playMusic.value.id));
-  }
+/**
+ * 点击底部播放条的任意空白区域都能进入（退出）详情页（#751）
+ * 只排除真正的交互控件，其余位置（封面、歌曲信息、按钮之间的空白）都可点击。
+ * 全屏播放器由 n-drawer teleport 到 #layout-main，不在播放条节点内，无需额外排除。
+ */
+const IGNORE_FULL_TRIGGER_SELECTOR = [
+  '.music-time', // 进度条（绝对定位覆盖播放条顶边）
+  '.music-buttons-prev',
+  '.music-buttons-play',
+  '.music-buttons-next',
+  '.audio-button' // 音量、播放模式、收藏、歌词、下载、更多、播放列表
+].join(', ');
 
-  // 非B站视频直接比较ID
-  return playerStore.favoriteList.includes(playMusic.value.id);
-});
-
-const toggleFavorite = async (e: Event) => {
-  console.log('playMusic.value', playMusic.value);
-  e.stopPropagation();
-
-  // 处理B站视频的收藏ID
-  let favoriteId = playMusic.value.id;
-  if (playMusic.value.source === 'bilibili' && playMusic.value.bilibiliData?.bvid) {
-    // 如果当前播放的是B站视频，且已有ID不包含--格式，则需要构造完整ID
-    if (!String(favoriteId).includes('--')) {
-      favoriteId = `${playMusic.value.bilibiliData.bvid}--${playMusic.value.song?.ar?.[0]?.id || 0}--${playMusic.value.bilibiliData.cid}`;
-    }
-  }
-
-  if (isFavorite.value) {
-    playerStore.removeFromFavorite(favoriteId);
-  } else {
-    playerStore.addToFavorite(favoriteId);
-  }
+const handleBarClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement | null;
+  if (!target || target.closest(IGNORE_FULL_TRIGGER_SELECTOR)) return;
+  setMusicFull();
 };
 
 const openLyricWindow = () => {
@@ -378,7 +340,6 @@ const handleArtistClick = (id: number) => {
   navigateToArtist(id);
 };
 
-// 打开播放列表抽屉
 const openPlayListDrawer = () => {
   playerStore.setPlayListDrawerVisible(true);
 };
@@ -394,6 +355,12 @@ const openPlayListDrawer = () => {
   @apply bg-light dark:bg-dark shadow-2xl shadow-gray-300;
   z-index: 9999;
   animation-duration: 0.5s !important;
+  /* 空白区域可点击展开详情页（#751） */
+  cursor: pointer;
+
+  .music-time {
+    cursor: default;
+  }
 
   &.play-bar-opcity {
     @apply bg-transparent !important;
@@ -474,6 +441,10 @@ const openPlayListDrawer = () => {
       @apply border border-gray-200 dark:border-gray-700;
       @apply text-gray-800 dark:text-white;
       white-space: nowrap;
+
+      &.volume-percentage-disabled {
+        @apply text-gray-400 dark:text-gray-500;
+      }
     }
   }
 }

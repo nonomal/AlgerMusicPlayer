@@ -41,6 +41,11 @@
               :class="{ 'text-green-500': isPlaying }"
             >
               {{ item.name }}
+              <span
+                v-if="item.tns?.length || item.alia?.length"
+                class="text-neutral-400 dark:text-neutral-500"
+                >（{{ item.tns?.[0] || item.alia?.[0] }}）</span
+              >
             </n-ellipsis>
           </div>
           <div class="song-item-content-compact-artist">
@@ -178,7 +183,7 @@ const formatDuration = (ms: number): string => {
 
 <style lang="scss" scoped>
 .compact-song-item {
-  @apply rounded-lg p-2 h-12 mb-1 border-b dark:border-gray-800 border-gray-100;
+  @apply rounded-xl p-2 h-12 mb-1 border-b dark:border-gray-800 border-gray-100;
 
   &:hover {
     @apply bg-gray-50 dark:bg-gray-700;
@@ -204,24 +209,24 @@ const formatDuration = (ms: number): string => {
     }
 
     &-title {
-      @apply flex-[2.5] min-w-0 text-sm cursor-pointer text-gray-900 dark:text-white;
+      @apply flex-[2.5] min-w-0 text-sm cursor-pointer text-gray-900 dark:text-white flex items-center;
     }
 
     &-artist {
-      @apply flex-[1.5] min-w-0 text-sm text-gray-500 dark:text-gray-400;
+      @apply flex-[1.5] min-w-0 text-sm text-gray-500 dark:text-gray-400 flex items-center;
     }
 
     &-album {
-      @apply flex-[1.5] min-w-0 text-sm text-gray-500 dark:text-gray-400;
+      @apply flex-[1.5] min-w-0 text-sm text-gray-500 dark:text-gray-400 flex items-center;
     }
 
     &-duration {
-      @apply w-14 flex-shrink-0 text-sm text-gray-500 dark:text-gray-400 justify-end;
+      @apply w-14 flex-shrink-0 text-sm text-gray-500 dark:text-gray-400 flex items-center justify-end;
     }
   }
 
   .song-item-operating-compact {
-    @apply border-none bg-transparent gap-2 flex items-center;
+    @apply border-none bg-transparent gap-3 flex items-center justify-end min-w-[160px];
 
     .song-item-operating-like,
     .song-item-operating-play,

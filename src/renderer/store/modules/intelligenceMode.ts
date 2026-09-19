@@ -28,11 +28,9 @@ export const useIntelligenceModeStore = defineStore('intelligenceMode', () => {
    */
   const playIntelligenceMode = async () => {
     const { useUserStore } = await import('./user');
-    const { usePlayerCoreStore } = await import('./playerCore');
     const { usePlaylistStore } = await import('./playlist');
 
     const userStore = useUserStore();
-    const playerCore = usePlayerCoreStore();
     const playlistStore = usePlaylistStore();
     const { t } = i18n.global;
 
@@ -98,11 +96,11 @@ export const useIntelligenceModeStore = defineStore('intelligenceMode', () => {
 
         setLocalStorageItem('isIntelligenceMode', true);
         setLocalStorageItem('intelligenceModeInfo', intelligenceModeInfo.value);
-        setLocalStorageItem('playMode', playlistStore.playMode);
 
         // 替换播放列表并开始播放
         playlistStore.setPlayList(intelligenceSongs, false, true);
-        await playerCore.handlePlayMusic(intelligenceSongs[0], true);
+        const { playTrack } = await import('@/services/playbackController');
+        await playTrack(intelligenceSongs[0], true);
       } else {
         message.error(t('player.playBar.intelligenceMode.failed'));
       }
@@ -114,12 +112,36 @@ export const useIntelligenceModeStore = defineStore('intelligenceMode', () => {
 
   /**
    * 清除心动模式状态
+   * @param skipPlayModeChange 是否跳过播放模式切换
    */
-  const clearIntelligenceMode = () => {
+  const clearIntelligenceMode = (skipPlayModeChange: boolean = false) => {
+    console.log(
+      '[IntelligenceMode] clearIntelligenceMode 被调用，skipPlayModeChange:',
+      skipPlayModeChange
+    );
+
     isIntelligenceMode.value = false;
     intelligenceModeInfo.value = null;
     setLocalStorageItem('isIntelligenceMode', false);
     localStorage.removeItem('intelligenceModeInfo');
+
+    console.log(
+      '[IntelligenceMode] 心动模式状态已清除，isIntelligenceMode:',
+      isIntelligenceMode.value
+    );
+
+    // 自动切换播放模式为顺序播放 (playMode = 0)
+    if (!skipPlayModeChange) {
+      (async () => {
+        const { usePlaylistStore } = await import('./playlist');
+        const playlistStore = usePlaylistStore();
+
+        if (playlistStore.playMode === 3) {
+          console.log('[IntelligenceMode] 退出心动模式，自动切换播放模式为顺序播放');
+          playlistStore.playMode = 0;
+        }
+      })();
+    }
   };
 
   return {
